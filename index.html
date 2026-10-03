@@ -1,0 +1,1830 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LogoWriter GL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Silkscreen&display=swap">
+<style>
+html{color-scheme:light}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+
+/* Layout: a LogoWriter page split in two. Front side (turtle canvas + command center) on the left, flip side (procedures) on the right; stacks on phones. */
+:root{
+  --bg:#e8eaf1; --panel:#f6f7fb; --ink:#1a1e2c; --muted:#5b6278; --line:#cbd0de;
+  --accent:#2b47c7; --accent-ink:#ffffff; --err:#b3261e; --ok:#1d7443; --code:#fdfdff;
+  --font-display:'Silkscreen', ui-monospace, monospace;
+  --font-ui:'IBM Plex Sans', system-ui, -apple-system, Segoe UI, sans-serif;
+  --font-code:'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10131b; --panel:#171b26; --ink:#e4e7f0; --muted:#97a0b6; --line:#2a3044;
+  --accent:#8399ff; --accent-ink:#0c0f1c; --err:#ff8f86; --ok:#7fd3a0; --code:#131722; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10131b; --panel:#171b26; --ink:#e4e7f0; --muted:#97a0b6; --line:#2a3044;
+  --accent:#8399ff; --accent-ink:#0c0f1c; --err:#ff8f86; --ok:#7fd3a0; --code:#131722; color-scheme:dark}
+
+html,body{height:auto}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--font-ui);padding-inline:16px;padding-block:14px 32px}
+.wrap{max-width:1360px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+
+header{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px}
+.mark{font-family:var(--font-display);font-size:22px;letter-spacing:.02em;margin:0;display:flex;align-items:center;gap:10px;line-height:1}
+.mark svg{flex:none}
+.mark small{font-family:var(--font-ui);font-size:12px;color:var(--muted);letter-spacing:0}
+.tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-left:auto}
+label.sel{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+select,button,input[type=text]{font:inherit;color:var(--ink)}
+select{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:13px;text-transform:none;letter-spacing:0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--panel)}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{padding:6px 11px;font-size:13px;cursor:pointer;color:var(--muted);border-right:1px solid var(--line)}
+.seg label:last-of-type{border-right:0}
+.seg input:checked+label{background:var(--accent);color:var(--accent-ink)}
+.seg input:focus-visible+label{outline:2px solid var(--accent);outline-offset:-2px}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:6px 14px;font-weight:600;cursor:pointer}
+.btn.go{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn:hover{filter:brightness(1.05)}
+.btn:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.app{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:920px){.app{grid-template-columns:minmax(0,1fr)}}
+.side{display:flex;flex-direction:column;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.side-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:8px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.side-h h2{margin:0;font-family:var(--font-display);font-size:12px;font-weight:400;letter-spacing:.08em;text-transform:uppercase}
+.side-h span{font-size:12px;color:var(--muted)}
+.stats{font-family:var(--font-code);font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums;display:flex;gap:12px;flex-wrap:wrap}
+.stats b{color:var(--ink);font-weight:500}
+.stats .run{color:var(--ok)}
+
+.stage{position:relative;line-height:0;background:#000}
+canvas{width:100%;aspect-ratio:3/2;display:block;max-width:100%}
+.nogl{position:absolute;inset:0;display:grid;place-items:center;color:#fff;font:14px var(--font-ui);padding:20px;text-align:center;line-height:1.5}
+
+.cc{border-top:1px solid var(--line);display:flex;flex-direction:column;background:var(--code)}
+#out{margin:0;height:9.5em;overflow:auto;padding:8px 12px;font:12.5px/1.5 var(--font-code);white-space:pre-wrap;word-break:break-word}
+#out .err{color:var(--err)}
+#out .ok{color:var(--ok)}
+#out .echo{color:var(--muted)}
+.prompt{display:flex;align-items:center;gap:8px;border-top:1px dashed var(--line);padding:6px 12px}
+.prompt span{font-family:var(--font-code);color:var(--accent);font-weight:600}
+#cmd{flex:1;min-width:0;border:0;background:transparent;font:13px var(--font-code);padding:4px 0;outline:none}
+
+.tabs{display:flex;gap:2px;padding:6px 8px 0;border-bottom:1px solid var(--line)}
+.tab{border:1px solid transparent;border-bottom:0;background:transparent;border-radius:6px 6px 0 0;padding:6px 14px 7px;margin-bottom:-1px;cursor:pointer;font-family:var(--font-display);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.tab[aria-selected="true"]{background:var(--code);border-color:var(--line);color:var(--ink)}
+.tab:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.tabs .hint{margin-left:auto;align-self:center;font-size:12px;color:var(--muted);padding-bottom:4px}
+.pane{height:640px;display:flex;flex-direction:column;background:var(--code);min-height:0}
+@media (max-width:920px){.pane{height:480px}}
+
+.filebar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--line);background:var(--panel)}
+.filebar input[type=text]{flex:1 1 140px;min-width:0;border:1px solid var(--line);border-radius:6px;padding:5px 8px;background:var(--code);font-size:13px}
+.filebar input[type=text]:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.btn.sm{padding:5px 10px;font-size:12.5px;font-weight:500}
+.btn.danger{color:var(--err)}
+.btn[disabled]{opacity:.45;cursor:default;filter:none}
+
+#src{flex:1;min-height:0;resize:none;border:0;background:var(--code);color:var(--ink);font:13px/1.55 var(--font-code);padding:12px 14px;tab-size:2;white-space:pre;overflow:auto;outline:none}
+#src:focus-visible{box-shadow:inset 0 0 0 2px var(--accent)}
+#src.drop{box-shadow:inset 0 0 0 2px var(--accent)}
+
+#info{flex:1;overflow:auto;padding:4px 18px 24px;min-height:0}
+#info section{max-width:68ch}
+#info h3{font-family:var(--font-display);font-weight:400;font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin:22px 0 6px;color:var(--accent);text-wrap:balance}
+#info p,#info li{font-size:13.5px;line-height:1.6;margin:0 0 8px}
+#info ul{padding-left:18px;margin:0 0 8px}
+#info code,#info pre{font-family:var(--font-code);font-size:12.5px}
+#info code{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+#info pre{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 10px;overflow-x:auto;margin:0 0 10px;line-height:1.5}
+.toc{display:flex;flex-wrap:wrap;gap:4px 12px;padding:12px 0 2px;border-bottom:1px dashed var(--line)}
+.toc a{color:var(--accent);font-size:12.5px;text-decoration:none}
+.toc a:hover{text-decoration:underline}
+.prim{width:100%;border-collapse:collapse;font-size:12.5px;margin:0 0 10px}
+.prim td{padding:4px 8px 4px 0;vertical-align:top;border-top:1px solid var(--line)}
+.prim td:first-child{font-family:var(--font-code);white-space:nowrap;padding-right:14px}
+.tblwrap{overflow-x:auto}
+.swatches{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px;margin:4px 0 10px;max-width:420px}
+.sw{display:flex;flex-direction:column;align-items:center;gap:3px;font:11px var(--font-code);color:var(--muted)}
+.sw i{width:100%;aspect-ratio:1.4;border-radius:4px;border:1px solid var(--line);display:block}
+kbd{font:11px var(--font-code);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 class="mark">
+      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><path d="M13 2 L23 22 L13 17 L3 22 Z" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linejoin="round"/></svg>
+      LogoWriter GL <small>compiled Logo · WebGL · many turtles</small>
+    </h1>
+    <div class="tools">
+      <label class="sel" for="ex">Page
+        <select id="ex"></select>
+      </label>
+      <div class="seg" role="radiogroup" aria-label="Speed">
+        <input type="radio" name="spd" id="s-turtle" value="turtle"><label for="s-turtle" title="One step per frame per turtle">Turtle</label>
+        <input type="radio" name="spd" id="s-fast" value="fast" checked><label for="s-fast" title="120 steps per frame per turtle">Fast</label>
+        <input type="radio" name="spd" id="s-warp" value="warp"><label for="s-warp" title="Run flat out, 12 ms per frame">Warp</label>
+      </div>
+      <button class="btn go" id="run" title="Load the flip side and run STARTUP (Ctrl+Enter)">Run</button>
+      <button class="btn" id="stop" title="Stop all turtles (Esc)">Stop</button>
+    </div>
+  </header>
+
+  <main class="app">
+    <section class="side" aria-label="Front side">
+      <div class="side-h">
+        <h2>Front</h2>
+        <div class="stats" id="stats"></div>
+      </div>
+      <div class="stage">
+        <canvas id="cv" aria-label="Turtle drawing"></canvas>
+        <div class="nogl" id="nogl" hidden>This page needs WebGL 2, which this browser didn't provide.</div>
+      </div>
+      <div class="cc">
+        <pre id="out" aria-live="polite"></pre>
+        <div class="prompt"><span>?</span><input type="text" id="cmd" autocomplete="off" spellcheck="false" placeholder="Command center: try  REPEAT 6 [FD 100 RT 60]" aria-label="Command center"></div>
+      </div>
+    </section>
+
+    <section class="side" aria-label="Procedures and info">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" id="tab-flip" aria-controls="pane-flip" aria-selected="true">Flip side</button>
+        <button class="tab" role="tab" id="tab-info" aria-controls="pane-info" aria-selected="false" tabindex="-1">Info</button>
+        <span class="hint"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> runs</span>
+      </div>
+
+      <div class="pane" id="pane-flip" role="tabpanel" aria-labelledby="tab-flip">
+        <div class="filebar">
+          <input type="text" id="pname" placeholder="Page name" aria-label="Page name" maxlength="60" spellcheck="false">
+          <button class="btn sm" id="save" title="Save this flip side in this browser under the name on the left">Save</button>
+          <button class="btn sm" id="copy" title="Copy the procedures to the clipboard">Copy</button>
+          <button class="btn sm" id="open" title="Load a .logo or .txt file (you can also drop one onto the editor)">Open file…</button>
+          <button class="btn sm danger" id="del" title="Delete this saved page" disabled>Delete</button>
+          <input type="file" id="file" accept=".logo,.lgo,.txt,text/plain" hidden>
+        </div>
+        <textarea id="src" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Procedures"></textarea>
+      </div>
+
+      <div class="pane" id="pane-info" role="tabpanel" aria-labelledby="tab-info" hidden>
+        <div id="info">
+          <nav class="toc" aria-label="Info sections">
+            <a href="#i-start">Getting started</a><a href="#i-save">Saving</a><a href="#i-turtles">Many turtles</a>
+            <a href="#i-speed">Speed</a><a href="#i-screen">Screen &amp; color</a><a href="#i-lang">Language</a>
+            <a href="#i-ref">Primitives</a><a href="#i-engine">How it runs</a><a href="#i-diff">Differences</a><a href="#i-keys">Keys</a>
+          </nav>
+          <section>
+            <h3 id="i-start">Getting started</h3>
+            <p>LogoWriter GL follows the 1986 LogoWriter layout. A page has two sides:</p>
+            <ul>
+              <li><b>Front</b> is the turtle canvas, with the <b>command center</b> under it. Anything you type there runs right away on turtle 0.</li>
+              <li><b>Flip side</b> holds procedures, written as <code>TO name :input … END</code>. Nothing else can go there.</li>
+            </ul>
+            <p><b>Run</b> clears the screen, resets to a single turtle at home, loads the flip side and calls <code>STARTUP</code> if you defined one. Pick a page from the <b>Page</b> menu to load one of 32 examples, grouped into classics, fractals, complex-plane sets, curves and turtle swarms; it starts immediately. Errors appear in the command center with the flip-side line number.</p>
+            <pre>TO STARTUP
+  CS
+  REPEAT 5 [STAR 80 RT 72]
+END
+
+TO STAR :size
+  REPEAT 5 [FD :size RT 144]
+END</pre>
+            <p>Try commands such as <code>REPEAT 36 [SQUARE 100 RT 10]</code> in the command center after loading the Squares page. Up and Down recall earlier commands.</p>
+          </section>
+
+          <section>
+            <h3 id="i-save">Saving your work</h3>
+            <ul>
+              <li><b>Save</b> stores the flip side under the name in the box. Saved pages appear under <i>My pages</i> in the Page menu. Saving with the same name replaces the earlier version.</li>
+              <li>Your current edit is also kept as a draft automatically and comes back when you reopen this page.</li>
+              <li>Both live in this browser only. They don't follow you to another device or browser, and clearing site data removes them. Private windows may not keep them at all.</li>
+              <li>For anything you want to keep for good, use <b>Copy</b> and paste the procedures into a file or repo. <b>Open file…</b> (or dropping a file on the editor) loads it back.</li>
+              <li>This page itself is saved in your Claude artifacts, and you can share it from its Share menu. Other people get the examples, not your saved pages.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h3 id="i-turtles">Many turtles</h3>
+            <p><code>LAUNCH [ instructions ]</code> creates a new turtle at the launching turtle's position, heading, pen and color, then runs the list on it at the same time as everything else. Every turtle gets a turn each frame, so all of them move together.</p>
+            <pre>TO STARTUP
+  CS HT
+  REPEAT 12 [LAUNCH [SPOKE REPCOUNT]]
+END
+
+TO SPOKE :i
+  SETH :i * 30
+  SETPC :i
+  REPEAT 200 [FD 2 RT :i / 4]
+  DIE
+END</pre>
+            <ul>
+              <li>Inputs and <code>LOCAL</code> variables visible at the <code>LAUNCH</code> are <b>copied</b> into the new turtle, so each one keeps its own <code>REPCOUNT</code> or <code>:i</code>. Globals (<code>MAKE</code> outside a procedure's locals) are shared by all turtles.</li>
+              <li><code>WHO</code> is a turtle's number. Turtle 0 is the original; launched turtles count up from 1. <code>TURTLES</code> is how many exist.</li>
+              <li><code>DIE</code> ends the turtle and removes it from the screen; its drawing stays. A launched turtle that finishes its list without <code>DIE</code> stays visible. On turtle 0, <code>DIE</code> just hides it and stops.</li>
+              <li><code>WAIT n</code> pauses only the calling turtle, for n sixtieths of a second. <code>WAIT 0</code> just hands over to the other turtles, which keeps turtles that interact in lockstep (see Pursuit and Billiards).</li>
+              <li><code>POSOF n</code> outputs turtle n's position as <code>[x y]</code>, so turtles can follow or avoid each other: <code>SETH TOWARDS POSOF 1</code>.</li>
+              <li>The limit is 2048 turtles.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h3 id="i-speed">Speed</h3>
+            <ul>
+              <li><b>Turtle</b>: one step per turtle per frame. Good for watching how a program works.</li>
+              <li><b>Fast</b>: 120 steps per turtle per frame.</li>
+              <li><b>Warp</b>: runs flat out for 12 ms of every frame, then draws. Use it for big pictures; the command center reports total time when the last turtle finishes.</li>
+            </ul>
+            <p>A step is one move, turn, <code>DOT</code> or loop pass. Calculations that never touch a turtle cost nothing in steps, which is why the Mandelbrot's inner loop is fast at every speed. The bar above the canvas shows live turtle count, total segments and steps per second. <b>Stop</b> or <kbd>Esc</kbd> halts all turtles.</p>
+          </section>
+
+          <section>
+            <h3 id="i-screen">Screen &amp; color</h3>
+            <p>The screen is 960 × 640 turtle steps with (0, 0) at the center, x to the right and y up. X runs from −480 to 480, y from −320 to 320. Heading 0 points up and increases clockwise. Turtles can leave the screen; there's no wrapping.</p>
+            <p><code>SETPC</code> and <code>SETBG</code> take a palette number 0–15 or a <code>[r g b]</code> list with 0–255 values. To compute a color, build the list with <code>(LIST r g b)</code>, because a bracketed list is literal and isn't evaluated. An optional fourth number is opacity.</p>
+            <div class="swatches" id="swatches"></div>
+            <p><code>SETW n</code> sets pen width in steps. <code>DOT</code> stamps a square the size of the pen width at the turtle, even with the pen up. <code>PE</code> erases with the pen, and <code>PPT</code> or <code>PD</code> returns to painting.</p>
+          </section>
+
+          <section>
+            <h3 id="i-lang">Language</h3>
+            <ul>
+              <li><b>Procedures.</b> <code>TO NAME :a :b</code> starts one, with inputs on the same line, and <code>END</code> finishes it. <code>OUTPUT value</code> returns a value, and <code>STOP</code> returns without one. Names are case-insensitive.</li>
+              <li><b>Variables.</b> <code>MAKE "x 5</code> sets and <code>:x</code> reads. <code>LOCAL "x</code> makes a variable private to the procedure.</li>
+              <li><b>Arithmetic.</b> <code>+ - * /</code> are infix with the usual precedence. Comparisons are <code>= &lt; &gt; &lt;= &gt;= &lt;&gt;</code>. Parentheses group.</li>
+              <li><b>Inputs grab whole expressions</b>, as in all Logos. <code>FD 10 + 5</code> moves 15, and <code>SIN 30 + 60</code> is <code>SIN 90</code>. Use parentheses when you mean otherwise: <code>(SIN 30) + 60</code>.</li>
+              <li><b>Minus.</b> <code>:a - 1</code> subtracts and <code>:a -1</code> is two separate values. A minus right after a space and touching the next thing is a negative sign.</li>
+              <li><b>Extra inputs.</b> Wrap a call in parentheses to give more inputs than usual: <code>(LIST 1 2 3)</code>, <code>(SUM 1 2 3 4)</code>, <code>(PRINT "a "b :c)</code>.</li>
+              <li><b>Words and lists.</b> <code>"word</code> is a literal word, and <code>[a b c]</code> is a literal list. <code>;</code> starts a comment.</li>
+              <li><b>Angles</b> are in degrees everywhere, including <code>SIN</code>, <code>COS</code>, <code>ARCTAN</code>, <code>TOWARDS</code> and <code>HEADING</code>.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h3 id="i-ref">Primitives</h3>
+            <div class="tblwrap"><table class="prim"><tbody>
+              <tr><td>FD BK n · RT LT deg</td><td>Move or turn. Long forms FORWARD, BACK, RIGHT, LEFT also work.</td></tr>
+              <tr><td>SETXY x y · SETX · SETY · SETPOS [x y]</td><td>Move to a point, drawing if the pen is down.</td></tr>
+              <tr><td>SETH deg · HOME</td><td>Set heading; go to the center facing up.</td></tr>
+              <tr><td>PU PD PE PPT</td><td>Pen up, down, erase, paint.</td></tr>
+              <tr><td>SETPC c · SETW n · SETBG c · DOT</td><td>Pen color, pen width, background, stamp a square.</td></tr>
+              <tr><td>HT ST · CS · CLEAN</td><td>Hide or show turtle; clear and home; clear only.</td></tr>
+              <tr><td>XCOR YCOR HEADING POS PENDOWNP</td><td>Turtle state.</td></tr>
+              <tr><td>TOWARDS [x y] · DISTANCE [x y]</td><td>Heading to, and distance from, a point.</td></tr>
+              <tr><td>LAUNCH [ ] · WHO · TURTLES · POSOF n · DIE · WAIT n</td><td>Concurrency. See Many turtles.</td></tr>
+              <tr><td>REPEAT n [ ] · REPCOUNT · FOREVER [ ]</td><td>Loops. REPCOUNT counts from 1 in the innermost REPEAT.</td></tr>
+              <tr><td>IF c [ ] [ ] · IFELSE c [ ] [ ]</td><td>Conditionals. The second list on IF is optional.</td></tr>
+              <tr><td>WHILE [c] [ ] · UNTIL [c] [ ]</td><td>Condition is rechecked before each pass.</td></tr>
+              <tr><td>FOR [i a b step] [ ]</td><td>Counted loop; step defaults to ±1.</td></tr>
+              <tr><td>MAKE "x v · LOCAL "x · OUTPUT v · STOP</td><td>Variables and returning.</td></tr>
+              <tr><td>SUM DIFFERENCE PRODUCT QUOTIENT</td><td>Prefix arithmetic.</td></tr>
+              <tr><td>REMAINDER MODULO MINUS ABS INT ROUND</td><td>REMAINDER keeps the sign of the first input; MODULO is always ≥ 0 for a positive divisor.</td></tr>
+              <tr><td>SQRT POWER EXP LN LOG10</td><td>Powers and logs.</td></tr>
+              <tr><td>SIN COS TAN ARCTAN PI</td><td>Trig in degrees.</td></tr>
+              <tr><td>RANDOM n · MIN MAX</td><td>Whole number from 0 to n − 1; smallest and largest.</td></tr>
+              <tr><td>AND OR NOT · EQUALP LESSP GREATERP</td><td>Logic and comparison. TRUE and FALSE are values.</td></tr>
+              <tr><td>LIST FPUT LPUT SE WORD</td><td>Build lists and words.</td></tr>
+              <tr><td>FIRST LAST BF BL ITEM n COUNT EMPTYP NUMBERP</td><td>Take lists and words apart.</td></tr>
+              <tr><td>PRINT SHOW TYPE · TIMER</td><td>Write to the command center; seconds since Run.</td></tr>
+            </tbody></table></div>
+          </section>
+
+          <section>
+            <h3 id="i-engine">How it runs</h3>
+            <p><b>Compiler.</b> The flip side is tokenized and parsed with each procedure's input count known in advance, which Logo's prefix syntax requires. It's then translated to JavaScript source and handed to the browser's JIT. Nothing is interpreted at run time.</p>
+            <p><b>Turtles as coroutines.</b> Procedures that move a turtle become JavaScript generators. Each move, turn and loop pass spends one step from the turtle's budget; at zero it yields, and the scheduler moves on to the next turtle.</p>
+            <p><b>Pure procedures.</b> A procedure that never moves, launches or waits (and calls only procedures like itself) compiles to an ordinary function with no yields. <code>ITER</code>, <code>SHADE</code> and <code>HUE</code> in the Mandelbrot are pure, so its inner loop runs as plain floating-point code. A pure loop that runs past 200 million passes without drawing is stopped, so a stuck <code>WHILE</code> can't freeze the page.</p>
+            <p><b>Drawing.</b> Each line segment is one instance in a WebGL 2 instanced draw: a capsule with antialiasing computed in the fragment shader. New segments are batched and drawn once per frame into a 1920 × 1280 texture that holds the picture, so a frame costs only what changed since the last one. Turtles are drawn on top of that texture every frame.</p>
+          </section>
+
+          <section>
+            <h3 id="i-diff">Differences from LogoWriter</h3>
+            <ul>
+              <li>Variables are lexically scoped. A procedure sees its own inputs and locals plus globals, not its caller's locals.</li>
+              <li>Instruction lists must be written in place as <code>[ … ]</code>; <code>RUN</code> of a computed list isn't supported.</li>
+              <li>No screen wrapping, shapes, text stamping, multiple pages per file, or <code>TELL</code>/<code>ASK</code>. <code>LAUNCH</code> replaces <code>TELL</code>.</li>
+              <li>Additions: true color, pen width, <code>DOT</code>, thousands of concurrent turtles.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h3 id="i-keys">Keys</h3>
+            <ul>
+              <li><kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd>: Run</li>
+              <li><kbd>Esc</kbd>: Stop</li>
+              <li><kbd>Enter</kbd> in the command center runs the line; <kbd>↑</kbd> <kbd>↓</kbd> walk the history.</li>
+              <li><kbd>Tab</kbd> in the flip side indents by two spaces.</li>
+            </ul>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+'use strict';
+//<core>
+// ======================= Logo → JavaScript compiler =======================
+class LogoError extends Error{constructor(msg,line){super(msg);this.line=line||0}}
+
+const WS=/\s/, WORDCH=/[A-Za-z0-9_.?!]/;
+function tokenize(src){
+  const out=[];let i=0,line=1;const n=src.length;
+  while(i<n){
+    const c=src[i];
+    if(c==='\n'){line++;i++;continue}
+    if(WS.test(c)){i++;continue}
+    if(c===';'){while(i<n&&src[i]!=='\n')i++;continue}
+    if(c==='['||c===']'||c==='('||c===')'){out.push({t:c,line});i++;continue}
+    if(c==='-'){
+      const p=i>0?src[i-1]:' ',q=src[i+1];
+      if((WS.test(p)||p==='['||p==='(')&&q!==undefined&&!WS.test(q)){
+        if(/[0-9.]/.test(q)){const m=/^-(\d*\.?\d+(?:[eE][+-]?\d+)?)/.exec(src.slice(i,i+48));if(m){out.push({t:'num',v:-parseFloat(m[1]),line});i+=m[0].length;continue}}
+        out.push({t:'neg',line});i++;continue;
+      }
+      out.push({t:'op',v:'-',line});i++;continue;
+    }
+    if(c==='<'||c==='>'){let v=c;if(src[i+1]==='=')v+='=';else if(c==='<'&&src[i+1]==='>')v='<>';out.push({t:'op',v,line});i+=v.length;continue}
+    if(c==='+'||c==='*'||c==='/'||c==='='){out.push({t:'op',v:c,line});i++;continue}
+    if(/[0-9]/.test(c)||(c==='.'&&/[0-9]/.test(src[i+1]||''))){
+      const m=/^\d*\.?\d+(?:[eE][+-]?\d+)?/.exec(src.slice(i,i+48));out.push({t:'num',v:parseFloat(m[0]),line});i+=m[0].length;continue;
+    }
+    if(c==='"'||c===':'){
+      let j=i+1;while(j<n&&WORDCH.test(src[j]))j++;
+      const w=src.slice(i+1,j);if(!w)throw new LogoError(`Expected a name after ${c}`,line);
+      out.push({t:c==='"'?'quote':'var',v:w,line});i=j;continue;
+    }
+    if(WORDCH.test(c)){let j=i;while(j<n&&WORDCH.test(src[j]))j++;const w=src.slice(i,j);out.push({t:'word',v:w.toUpperCase(),raw:w,line});i=j;continue}
+    throw new LogoError(`Unexpected character "${c}"`,line);
+  }
+  return out;
+}
+function group(toks){
+  const root=[],stack=[root],opens=[];
+  for(const t of toks){
+    if(t.t==='['){const l={t:'list',items:[],line:t.line};stack[stack.length-1].push(l);stack.push(l.items);opens.push(t)}
+    else if(t.t===']'){if(stack.length===1)throw new LogoError('Unexpected ]',t.line);stack.pop();opens.pop()}
+    else stack[stack.length-1].push(t);
+  }
+  if(stack.length>1)throw new LogoError('Missing ] for the [ opened on this line',opens[opens.length-1].line);
+  return root;
+}
+const ident=s=>s.toLowerCase().replace(/[^a-z0-9_]/g,c=>'$'+c.charCodeAt(0));
+const vid=name=>'v_'+ident(name), pid=name=>'p_'+ident(name);
+const num=v=>v<0||Object.is(v,-0)?`(${v})`:String(v);
+
+// Primitive table. kind: op (outputs) | cmd. mv: turtle step (costs budget, may yield). v: variadic in parens.
+const PRIMS={};
+function def(names,n,kind,gen,o){for(const nm of names.split(' '))PRIMS[nm]={n,kind,gen,...(o||{})}}
+const j=(a,op)=>`(${a.join(op)})`;
+def('SUM',2,'op',a=>j(a,'+'),{v:1}); def('DIFFERENCE',2,'op',a=>j(a,'-'));
+def('PRODUCT',2,'op',a=>j(a,'*'),{v:1}); def('QUOTIENT',2,'op',a=>j(a,'/'));
+def('REMAINDER',2,'op',a=>j(a,'%')); def('MODULO',2,'op',a=>`R.mod(${a})`);
+def('MINUS',1,'op',a=>`(-${a[0]})`); def('ABS',1,'op',a=>`$abs(${a})`); def('SQRT',1,'op',a=>`$sqrt(${a})`);
+def('POWER',2,'op',a=>`$pow(${a})`); def('EXP',1,'op',a=>`$exp(${a})`); def('LN',1,'op',a=>`$log(${a})`);
+def('LOG10',1,'op',a=>`$log10(${a})`);
+def('SIN',1,'op',a=>`$sin((${a})*DEG)`); def('COS',1,'op',a=>`$cos((${a})*DEG)`); def('TAN',1,'op',a=>`$tan((${a})*DEG)`);
+def('ARCTAN',1,'op',a=>`($atan(${a})/DEG)`); def('INT',1,'op',a=>`$trunc(${a})`); def('ROUND',1,'op',a=>`$round(${a})`);
+def('RANDOM',1,'op',a=>`R.rnd(${a})`); def('PI',0,'op',()=>'$PI');
+def('MAX',2,'op',a=>`$max(${a})`,{v:1}); def('MIN',2,'op',a=>`$min(${a})`,{v:1});
+def('AND',2,'op',a=>`(!!${j(a,'&&')})`,{v:1}); def('OR',2,'op',a=>`(!!${j(a,'||')})`,{v:1}); def('NOT',1,'op',a=>`(!(${a}))`);
+def('EQUALP',2,'op',a=>`R.eq(${a})`); def('LESSP',2,'op',a=>j(a,'<')); def('GREATERP',2,'op',a=>j(a,'>'));
+def('XCOR',0,'op',()=>'T.x'); def('YCOR',0,'op',()=>'T.y'); def('HEADING',0,'op',()=>'R.hd(T)');
+def('POS',0,'op',()=>'[T.x,T.y]'); def('PENDOWNP',0,'op',()=>'T.pen'); def('WHO',0,'op',()=>'T.id');
+def('TURTLES',0,'op',()=>'R.turtles.length'); def('TIMER',0,'op',()=>'R.timer()');
+def('TOWARDS',1,'op',a=>`R.towards(T,${a})`); def('DISTANCE',1,'op',a=>`R.distance(T,${a})`); def('POSOF',1,'op',a=>`R.posof(${a})`);
+def('LIST',2,'op',a=>`[${a}]`,{v:1}); def('FIRST',1,'op',a=>`R.first(${a})`); def('LAST',1,'op',a=>`R.last(${a})`);
+def('BUTFIRST BF',1,'op',a=>`R.bf(${a})`); def('BUTLAST BL',1,'op',a=>`R.bl(${a})`); def('ITEM',2,'op',a=>`R.item(${a})`);
+def('COUNT',1,'op',a=>`R.count(${a})`); def('FPUT',2,'op',a=>`R.fput(${a})`); def('LPUT',2,'op',a=>`R.lput(${a})`);
+def('SENTENCE SE',2,'op',a=>`R.se(${a})`,{v:1}); def('WORD',2,'op',a=>`R.word(${a})`,{v:1});
+def('EMPTYP',1,'op',a=>`R.emptyp(${a})`); def('NUMBERP',1,'op',a=>`(typeof (${a})==='number')`);
+// turtle commands
+def('FORWARD FD',1,'cmd',a=>`R.fd(T,${a})`,{mv:1}); def('BACK BK',1,'cmd',a=>`R.fd(T,-(${a}))`,{mv:1});
+def('RIGHT RT',1,'cmd',a=>`R.rt(T,${a})`,{mv:1}); def('LEFT LT',1,'cmd',a=>`R.rt(T,-(${a}))`,{mv:1});
+def('PENUP PU',0,'cmd',()=>'T.pen=false'); def('PENDOWN PD',0,'cmd',()=>'T.pen=true,T.erase=false');
+def('PENERASE PE',0,'cmd',()=>'T.pen=true,T.erase=true'); def('PENPAINT PPT',0,'cmd',()=>'T.pen=true,T.erase=false');
+def('HOME',0,'cmd',()=>'R.home(T)',{mv:1}); def('CLEARSCREEN CS',0,'cmd',()=>'R.cs(T)',{mv:1}); def('CLEAN',0,'cmd',()=>'R.clean()');
+def('SETXY',2,'cmd',a=>`R.setxy(T,${a})`,{mv:1}); def('SETX',1,'cmd',a=>`R.setxy(T,${a},T.y)`,{mv:1});
+def('SETY',1,'cmd',a=>`R.setxy(T,T.x,${a})`,{mv:1}); def('SETPOS',1,'cmd',a=>`R.setpos(T,${a})`,{mv:1});
+def('SETHEADING SETH',1,'cmd',a=>`R.seth(T,${a})`,{mv:1});
+def('SETPC SETC SETPENCOLOR',1,'cmd',a=>`T.c=R.color(${a})`); def('SETW SETWIDTH SETPENSIZE',1,'cmd',a=>`R.setw(T,${a})`);
+def('SETBG',1,'cmd',a=>`R.setbg(${a})`); def('HIDETURTLE HT',0,'cmd',()=>'T.vis=false'); def('SHOWTURTLE ST',0,'cmd',()=>'T.vis=true');
+def('DOT',0,'cmd',()=>'R.dot(T)',{mv:1});
+def('PRINT PR',1,'cmd',a=>`R.print(${a})`,{v:1}); def('SHOW',1,'cmd',a=>`R.show(${a})`); def('TYPE',1,'cmd',a=>`R.type(${a})`,{v:1});
+
+const SPECIAL=new Set(['REPEAT','FOREVER','IF','IFELSE','WHILE','UNTIL','FOR','LAUNCH','MAKE','LOCAL','STOP','OUTPUT','OP','DIE','WAIT','TO','END','REPCOUNT','TRUE','FALSE']);
+// Anything here means a procedure must be a coroutine (it moves turtles, sleeps or spawns).
+const IMPURE=new Set(['LAUNCH','DIE','WAIT','FOREVER']);
+for(const k in PRIMS)if(PRIMS[k].kind==='cmd'&&k!=='PRINT'&&k!=='PR'&&k!=='SHOW'&&k!=='TYPE')IMPURE.add(k);
+
+const PRELUDE='const DEG=Math.PI/180,$sin=Math.sin,$cos=Math.cos,$tan=Math.tan,$atan=Math.atan,$sqrt=Math.sqrt,$abs=Math.abs,$pow=Math.pow,$exp=Math.exp,$log=Math.log,$log10=Math.log10,$trunc=Math.trunc,$round=Math.round,$min=Math.min,$max=Math.max,$PI=Math.PI;';
+
+function splitProcs(toks){
+  const procs=new Map();let i=0;
+  while(i<toks.length){
+    const t=toks[i];
+    if(!(t.t==='word'&&t.v==='TO'))throw new LogoError('The flip side holds procedures only. Start one with TO name, or type commands in the command center',t.line);
+    const nt=toks[i+1];
+    if(!nt||nt.t!=='word')throw new LogoError('TO needs a procedure name',t.line);
+    const name=nt.v;
+    if(PRIMS[name]||SPECIAL.has(name))throw new LogoError(`${name} is a primitive. Pick another name`,t.line);
+    if(procs.has(name))throw new LogoError(`${name} is defined twice`,t.line);
+    i+=2;const params=[];
+    while(i<toks.length&&toks[i].t==='var'&&toks[i].line===t.line){params.push(toks[i].v.toUpperCase());i++}
+    const body=[];
+    while(i<toks.length&&!(toks[i].t==='word'&&toks[i].v==='END')){
+      if(toks[i].t==='word'&&toks[i].v==='TO')throw new LogoError(`${name} is missing END`,t.line);
+      body.push(toks[i]);i++;
+    }
+    if(i>=toks.length)throw new LogoError(`${name} is missing END`,t.line);
+    i++;
+    procs.set(name,{name,params,body:group(body),flat:body,line:t.line});
+  }
+  return procs;
+}
+function analyze(procs){
+  for(const p of procs.values()){
+    p.words=new Set(p.flat.filter(t=>t.t==='word').map(t=>t.v));
+    p.outputs=p.words.has('OUTPUT')||p.words.has('OP');
+    p.pure=![...p.words].some(w=>IMPURE.has(w));
+  }
+  let ch=true;
+  while(ch){ch=false;for(const p of procs.values())if(p.pure)for(const w of p.words){const q=procs.get(w);if(q&&!q.pure){p.pure=false;ch=true;break}}}
+}
+function listData(items){
+  return items.map(t=>t.t==='num'?t.v:t.t==='word'?t.raw:t.t==='quote'?t.v:t.t==='var'?':'+t.v:t.t==='list'?listData(t.items):t.t==='op'?t.v:t.t==='neg'?'-':t.t);
+}
+const show=t=>t.t==='num'?String(t.v):t.t==='word'?t.raw:t.t==='quote'?'"'+t.v:t.t==='var'?':'+t.v:t.t==='list'?'[…]':t.t==='op'?t.v:t.t;
+
+class Stream{constructor(a){this.a=a;this.i=0}peek(){return this.a[this.i]}next(){return this.a[this.i++]}eof(){return this.i>=this.a.length}last(){return this.a[this.i-1]}}
+const CMP={'=':(a,b)=>`R.eq(${a},${b})`,'<>':(a,b)=>`(!R.eq(${a},${b}))`,'<':(a,b)=>`(${a}<${b})`,'>':(a,b)=>`(${a}>${b})`,'<=':(a,b)=>`(${a}<=${b})`,'>=':(a,b)=>`(${a}>=${b})`};
+
+class Compiler{
+  constructor(procs){this.procs=procs;this.K=[];this.uid=0}
+  id(){return ++this.uid}
+  lineOf(s){const t=s.peek()||s.last();return t?t.line:0}
+  block(items,ctx){const s=new Stream(items);let js='';while(!s.eof())js+=this.stmt(s,ctx);return js}
+  // Loop back-edge: coroutines spend budget and yield; pure code only guards against runaway loops.
+  tick(ctx){return ctx.gen?'if(--T.b<=0)yield;':'if(++R.k>R.K)R.hang();'}
+  codeList(s,ctx,who){
+    const t=s.next();
+    if(!t)throw new LogoError(`${who} needs more inputs`,this.lineOf(s));
+    if(t.t!=='list')throw new LogoError(`${who} needs a [list] of instructions, got ${show(t)}`,t.line);
+    return this.block(t.items,ctx);
+  }
+  cond(s,ctx,who){
+    const t=s.peek();
+    if(t&&t.t==='list'){s.next();const ls=new Stream(t.items);const e=this.expr(ls,ctx,who);if(!ls.eof())throw new LogoError(`Extra ${show(ls.peek())} in ${who}'s condition`,t.line);return e}
+    return this.expr(s,ctx,who);
+  }
+  quoteName(s,who){const q=s.next();if(!q||q.t!=='quote')throw new LogoError(`${who} needs a "name`,q?q.line:this.lineOf(s));return q.v.toUpperCase()}
+  varRef(name,ctx){const id=vid(name);return ctx.locals.has(id)?id:`R.gv(G.${id},"${name}")`}
+  call(p,args,ctx){const f=`P.${pid(p.name)}(T${args.map(a=>','+a).join('')})`;return p.pure?f:`(yield* ${f})`}
+  args(s,ctx,nm,n){const a=[];for(let i=0;i<n;i++)a.push(this.expr(s,ctx,nm));return a}
+  close(s,open){const t=s.next();if(!t||t.t!==')')throw new LogoError('Missing )',open.line)}
+
+  stmt(s,ctx){
+    const t=s.next();
+    if(t.t==='('){
+      const w=s.peek();
+      if(w&&w.t==='word'){const pr=PRIMS[w.v];if(pr&&pr.kind==='cmd'&&pr.v){s.next();const a=[];while(s.peek()&&s.peek().t!==')')a.push(this.expr(s,ctx,w.v));this.close(s,t);return pr.gen(a,ctx)+';'}}
+      throw new LogoError("You don't say what to do with ( … )",t.line);
+    }
+    if(t.t!=='word')throw new LogoError(`You don't say what to do with ${show(t)}`,t.line);
+    const nm=t.v;
+    switch(nm){
+      case 'REPEAT':{
+        const n=this.expr(s,ctx,nm),r='r'+this.id(),e='e'+this.id();
+        ctx.rc.push(r);ctx.locals.add(r);const body=this.codeList(s,ctx,nm);ctx.rc.pop();ctx.locals.delete(r);
+        return `for(let ${r}=1,${e}=+(${n});${r}<=${e};${r}++){${body}${this.tick(ctx)}}`;
+      }
+      case 'FOREVER':return `for(;;){${this.codeList(s,ctx,nm)}${this.tick(ctx)}}`;
+      case 'IF':{
+        const c=this.expr(s,ctx,nm),a=this.codeList(s,ctx,nm);
+        const el=s.peek()&&s.peek().t==='list'?`else{${this.codeList(s,ctx,nm)}}`:'';
+        return `if(${c}){${a}}${el}`;
+      }
+      case 'IFELSE':{const c=this.expr(s,ctx,nm),a=this.codeList(s,ctx,nm),b=this.codeList(s,ctx,nm);return `if(${c}){${a}}else{${b}}`}
+      case 'WHILE':case 'UNTIL':{
+        const c=this.cond(s,ctx,nm),body=this.codeList(s,ctx,nm);
+        return `while(${nm==='UNTIL'?'!':''}(${c})){${body}${this.tick(ctx)}}`;
+      }
+      case 'FOR':{
+        const ct=s.next();
+        if(!ct||ct.t!=='list')throw new LogoError('FOR needs [name start end] or [name start end step]',t.line);
+        const ls=new Stream(ct.items),vt=ls.next();
+        if(!vt||vt.t!=='word')throw new LogoError('FOR needs [name start end]',t.line);
+        const v=vid(vt.v),a=this.expr(ls,ctx,'FOR'),b=this.expr(ls,ctx,'FOR'),st=ls.eof()?null:this.expr(ls,ctx,'FOR');
+        const E='e'+this.id(),S='s'+this.id(),had=ctx.locals.has(v);
+        ctx.locals.add(v);const body=this.codeList(s,ctx,nm);if(!had)ctx.locals.delete(v);
+        return `{let ${v}=+(${a});const ${E}=+(${b}),${S}=${st?`+(${st})`:`(${v}<=${E}?1:-1)`};for(;${S}>=0?${v}<=${E}:${v}>=${E};${v}+=${S}){${body}${this.tick(ctx)}}}`;
+      }
+      case 'LAUNCH':{
+        // Snapshot every visible local into the new turtle's closure (by value, like Logo's dynamic scope at launch time).
+        const caps=[...ctx.locals];
+        const ictx={gen:true,locals:new Set(caps),hoist:new Set(),rc:[...ctx.rc]};
+        const body=this.codeList(s,ictx,nm);
+        const hs=ictx.hoist.size?`let ${[...ictx.hoist].join(',')};`:'';
+        return `R.launch(T,((${caps})=>function*(T){${hs}${body}})(${caps}));${this.tick(ctx)}`;
+      }
+      case 'MAKE':{const name=this.quoteName(s,nm),id=vid(name),e=this.expr(s,ctx,nm);return ctx.locals.has(id)?`${id}=${e};`:`G.${id}=${e};`}
+      case 'LOCAL':{const id=vid(this.quoteName(s,nm));if(!ctx.locals.has(id)){ctx.locals.add(id);ctx.hoist.add(id)}return ''}
+      case 'STOP':return 'return;';
+      case 'OUTPUT':case 'OP':return `return ${this.expr(s,ctx,nm)};`;
+      case 'DIE':return 'R.die(T);';
+      case 'WAIT':return `R.wait(${this.expr(s,ctx,nm)});yield;`;
+      case 'TO':case 'END':throw new LogoError(`${nm} only works on the flip side`,t.line);
+      case 'REPCOUNT':case 'TRUE':case 'FALSE':throw new LogoError(`You don't say what to do with ${nm}`,t.line);
+    }
+    const pr=PRIMS[nm];
+    if(pr){
+      if(pr.kind==='op')throw new LogoError(`You don't say what to do with ${nm}`,t.line);
+      return pr.gen(this.args(s,ctx,nm,pr.n),ctx)+';'+(pr.mv?this.tick(ctx):'');
+    }
+    const p=this.procs.get(nm);
+    if(p)return this.call(p,this.args(s,ctx,nm,p.params.length),ctx)+';';
+    throw new LogoError(`I don't know how to ${t.raw}`,t.line);
+  }
+  expr(s,ctx,who){if(s.eof()||s.peek().t===')')throw new LogoError(`${who} needs more inputs`,this.lineOf(s));return this.cmp(s,ctx,who)}
+  cmp(s,ctx,who){let l=this.add(s,ctx,who);for(;;){const t=s.peek();if(t&&t.t==='op'&&CMP[t.v]){s.next();l=CMP[t.v](l,this.add(s,ctx,who))}else return l}}
+  add(s,ctx,who){let l=this.mul(s,ctx,who);for(;;){const t=s.peek();if(t&&t.t==='op'&&(t.v==='+'||t.v==='-')){s.next();l=`(${l}${t.v}${this.mul(s,ctx,who)})`}else return l}}
+  mul(s,ctx,who){let l=this.unary(s,ctx,who);for(;;){const t=s.peek();if(t&&t.t==='op'&&(t.v==='*'||t.v==='/')){s.next();l=`(${l}${t.v}${this.unary(s,ctx,who)})`}else return l}}
+  unary(s,ctx,who){const t=s.peek();if(t&&t.t==='neg'){s.next();return `(-${this.unary(s,ctx,who)})`}return this.primary(s,ctx,who)}
+  primary(s,ctx,who){
+    const t=s.next();
+    if(!t)throw new LogoError(`${who} needs more inputs`,this.lineOf(s));
+    switch(t.t){
+      case 'num':return num(t.v);
+      case 'quote':{const n=Number(t.v);return isFinite(n)?num(n):JSON.stringify(t.v)}
+      case 'var':return this.varRef(t.v.toUpperCase(),ctx);
+      case 'list':this.K.push(listData(t.items));return `K[${this.K.length-1}]`;
+      case '(':{
+        const w=s.peek();
+        if(w&&w.t==='word'){const pr=PRIMS[w.v];if(pr&&pr.v&&pr.kind==='op'){s.next();const a=[];while(s.peek()&&s.peek().t!==')')a.push(this.expr(s,ctx,w.v));this.close(s,t);return pr.gen(a,ctx)}}
+        const e=this.expr(s,ctx,who);this.close(s,t);return `(${e})`;
+      }
+      case 'word':{
+        const nm=t.v;
+        if(nm==='REPCOUNT'){if(!ctx.rc.length)throw new LogoError('REPCOUNT only works inside REPEAT',t.line);return ctx.rc[ctx.rc.length-1]}
+        if(nm==='TRUE')return 'true';
+        if(nm==='FALSE')return 'false';
+        const pr=PRIMS[nm];
+        if(pr){if(pr.kind!=='op')throw new LogoError(`${nm} doesn't output a value, so ${who} can't use it`,t.line);return pr.gen(this.args(s,ctx,nm,pr.n),ctx)}
+        const p=this.procs.get(nm);
+        if(p){if(!p.outputs)throw new LogoError(`${nm} doesn't OUTPUT anything, so ${who} can't use it`,t.line);return this.call(p,this.args(s,ctx,nm,p.params.length),ctx)}
+        if(SPECIAL.has(nm))throw new LogoError(`${nm} can't be used as an input to ${who}`,t.line);
+        throw new LogoError(`I don't know how to ${t.raw}`,t.line);
+      }
+      default:throw new LogoError(`Unexpected ${show(t)} in ${who}`,t.line);
+    }
+  }
+}
+function compileProgram(src){
+  const procs=splitProcs(tokenize(src));analyze(procs);
+  const c=new Compiler(procs);let js='"use strict";'+PRELUDE;
+  for(const p of procs.values()){
+    const params=p.params.map(vid);
+    const ctx={gen:!p.pure,locals:new Set(params),hoist:new Set(),rc:[]};
+    const body=c.block(p.body,ctx);
+    const hs=ctx.hoist.size?`let ${[...ctx.hoist].join(',')};`:'';
+    js+=`P.${pid(p.name)}=function${p.pure?'':'*'}(T${params.map(x=>','+x).join('')}){${hs}${body}};\n`;
+  }
+  return {procs,js,K:c.K};
+}
+function compileCommand(src,procs){
+  const c=new Compiler(procs);
+  const ctx={gen:true,locals:new Set(),hoist:new Set(),rc:[]};
+  const body=c.block(group(tokenize(src)),ctx);
+  const hs=ctx.hoist.size?`let ${[...ctx.hoist].join(',')};`:'';
+  return {js:'"use strict";'+PRELUDE+`return function*(T){${hs}${body}};`,K:c.K};
+}
+
+// ======================= Runtime: turtles + scheduler =======================
+const PALETTE=['#000000','#2b4bd6','#1f9a40','#22b2c6','#d33a2c','#b13fb3','#8a5a2b','#a9a9ad','#55565c','#6f8cff','#6fcf72','#8ff0ee','#f08b28','#ff7fae','#f2d23a','#ffffff']
+  .map(h=>[1,3,5].map(k=>parseInt(h.slice(k,k+2),16)/255).concat(1));
+const DEG=Math.PI/180, MAXT=2048, DIE_SIGNAL={};
+class Turtle{
+  constructor(id,src){
+    this.id=id;this.b=0;this.alive=true;
+    if(src){this.x=src.x;this.y=src.y;this.h=src.h;this.pen=src.pen;this.erase=src.erase;this.c=src.c;this.w=src.w;this.vis=src.vis}
+    else{this.x=0;this.y=0;this.h=0;this.pen=true;this.erase=false;this.c=PALETTE[0];this.w=1;this.vis=true}
+  }
+}
+const R={
+  G:{},P:{},procs:new Map(),turtles:[],tasks:[],nextId:1,cur:null,k:0,K:2e8,bg:PALETTE[15],dirty:true,t0:0,
+  lines:[],out(s,cls){R.lines.push([s,cls||''])},
+  gv(v,n){if(v===undefined)throw new LogoError(`${n} has no value`);return v},
+  hang(){throw new LogoError('A calculation ran 200 million loop steps without drawing. Is a WHILE loop stuck?')},
+  mod(a,b){return((a%b)+b)%b},
+  rnd(n){return Math.floor(Math.random()*n)},
+  hd(T){return((T.h%360)+360)%360},
+  timer(){return(performance.now()-R.t0)/1000},
+  eq(a,b){
+    if(a===b)return true;
+    if(typeof a==='number'||typeof b==='number')return a!==''&&b!==''&&+a===+b;
+    if(typeof a==='string'&&typeof b==='string')return a.toUpperCase()===b.toUpperCase();
+    if(Array.isArray(a)&&Array.isArray(b))return a.length===b.length&&a.every((x,i)=>R.eq(x,b[i]));
+    return false;
+  },
+  fd(T,d){
+    d=+d;const r=T.h*DEG,nx=T.x+d*Math.sin(r),ny=T.y+d*Math.cos(r);
+    if(T.pen)GL.seg(T.x,T.y,nx,ny,T.c,T.w,T.erase);
+    T.x=nx;T.y=ny;
+  },
+  rt(T,a){T.h+=+a},
+  seth(T,a){T.h=+a},
+  setxy(T,x,y){x=+x;y=+y;if(T.pen)GL.seg(T.x,T.y,x,y,T.c,T.w,T.erase);T.x=x;T.y=y},
+  setpos(T,l){if(!Array.isArray(l)||l.length<2)throw new LogoError('SETPOS needs a [x y] list');R.setxy(T,l[0],l[1])},
+  home(T){R.setxy(T,0,0);T.h=0},
+  cs(T){GL.clear();T.x=0;T.y=0;T.h=0},
+  clean(){GL.clear()},
+  dot(T){GL.seg(T.x,T.y,T.x,T.y,T.c,-Math.max(+T.w,0.5),T.erase)},
+  setw(T,w){T.w=Math.max(0.1,+w)},
+  color(v){
+    if(typeof v==='number'||(typeof v==='string'&&isFinite(+v))){const n=Math.floor(+v);return PALETTE[((n%16)+16)%16]}
+    if(Array.isArray(v)&&v.length>=3){const a=v.length>3?+v[3]/255:1;return[+v[0]/255,+v[1]/255,+v[2]/255,a]}
+    throw new LogoError(`Colors are a number 0–15 or a [r g b] list, not ${R.fmt(v,true)}`);
+  },
+  setbg(v){R.bg=R.color(v)},
+  fmt(x,br){
+    if(typeof x==='number')return Number.isInteger(x)?String(x):String(+x.toPrecision(8));
+    if(x===true)return 'TRUE';if(x===false)return 'FALSE';if(x===undefined)return '';
+    if(Array.isArray(x)){const s=x.map(e=>R.fmt(e,true)).join(' ');return br?`[${s}]`:s}
+    return String(x);
+  },
+  print(...a){R.out(a.map(x=>R.fmt(x,false)).join(' '))},
+  type(...a){R.out(a.map(x=>R.fmt(x,false)).join(''))},
+  show(x){R.out(R.fmt(x,true))},
+  wait(n){R.cur.wake=performance.now()+(+n)*1000/60},
+  launch(T,f){
+    if(R.turtles.length>=MAXT)throw new LogoError(`Too many turtles (the limit is ${MAXT})`);
+    const nt=new Turtle(R.nextId++,T);R.turtles.push(nt);
+    R.tasks.push({T:nt,gen:f(nt),wake:0,done:false});
+  },
+  die(T){if(T.id===0)T.vis=false;else T.alive=false;throw DIE_SIGNAL},
+  towards(T,l){return((Math.atan2(+l[0]-T.x,+l[1]-T.y)/DEG)+360)%360},
+  posof(n){const T=R.turtles.find(t=>t.id===+n&&t.alive);if(!T)throw new LogoError(`There is no turtle ${n}`);return[T.x,T.y]},
+  distance(T,l){return Math.hypot(+l[0]-T.x,+l[1]-T.y)},
+  first(x){if(!x.length)throw new LogoError('FIRST of an empty list');return x[0]},
+  last(x){if(!x.length)throw new LogoError('LAST of an empty list');return x[x.length-1]},
+  bf(x){return Array.isArray(x)?x.slice(1):String(x).slice(1)},
+  bl(x){return Array.isArray(x)?x.slice(0,-1):String(x).slice(0,-1)},
+  item(i,x){const v=x[(+i)-1];if(v===undefined)throw new LogoError(`ITEM ${i} is past the end`);return v},
+  count(x){return Array.isArray(x)?x.length:String(x).length},
+  fput(a,l){return[a,...l]},lput(a,l){return[...l,a]},
+  se(...a){return[].concat(...a.map(x=>Array.isArray(x)?x:[x]))},
+  word(...a){return a.map(x=>R.fmt(x,false)).join('')},
+  emptyp(x){return Array.isArray(x)?x.length===0:x===''},
+};
+function instantiate(js,K,P){return new Function('R','G','P','K',js)(R,R.G,P,K)}
+function resetWorld(){
+  R.tasks=[];R.turtles=[new Turtle(0)];R.nextId=1;R.G={};R.bg=PALETTE[15];R.dirty=true;GL.clear();GL.total=0;
+}
+function loadProgram(src){
+  const prog=compileProgram(src);const P={};
+  instantiate(prog.js,prog.K,P);
+  R.P=P;R.procs=prog.procs;R.lastSrc=src;
+  return prog;
+}
+function startTask(src,T){
+  const cmd=compileCommand(src,R.procs);
+  const f=new Function('R','G','P','K',cmd.js)(R,R.G,R.P,cmd.K);
+  T=T||R.turtles[0];
+  R.tasks.push({T,gen:f(T),wake:0,done:false});
+}
+// Run one task for up to `budget` turtle steps. Returns steps used.
+function step(task,budget,now){
+  if(task.done)return 0;
+  if(task.wake>now)return 0;
+  const T=task.T;T.b=budget;R.cur=task;
+  try{const r=task.gen.next();if(r.done)task.done=true}
+  catch(e){
+    task.done=true;
+    if(e!==DIE_SIGNAL)throw e;
+  }
+  return budget-T.b;
+}
+//</core>
+
+// ======================= WebGL renderer =======================
+const GL=(()=>{
+  const W=960,H=640,FS=2,STRIDE=9,CAP=65536;
+  let gl=null,prog,cprog,vao,evao,ibuf,obuf,qbuf,fbo,tex,uHalf,uPx,canvas;
+  const data=new Float32Array(CAP*STRIDE);let n=0,runs=[],lastErase=null;
+  let odata=new Float32Array(1024*STRIDE);
+  const api={total:0,W,H};
+  const VS=`#version 300 es
+layout(location=0) in vec2 aC;layout(location=1) in vec4 aS;layout(location=2) in vec4 aCol;layout(location=3) in float aW;
+uniform vec2 uHalf;uniform float uPx;
+out vec2 vP;out vec4 vCol;out float vHW;out float vL;out float vSq;
+void main(){
+  vec2 a=aS.xy,b=aS.zw,d=b-a;float L=length(d);
+  vec2 dir=L>1e-6?d/L:vec2(1.,0.);vec2 nr=vec2(-dir.y,dir.x);
+  float sq=aW<0.?1.:0.;
+  float hw=sq>.5?abs(aW)*.5:max(abs(aW)*.5,uPx*.5);
+  float pad=sq>.5?hw:hw+uPx;
+  float u=mix(-pad,L+pad,aC.x),v=mix(-pad,pad,aC.y);
+  vP=vec2(u,v);vCol=aCol;vHW=hw;vL=L;vSq=sq;
+  gl_Position=vec4((a+dir*u+nr*v)/uHalf,0.,1.);
+}`;
+  const FSRC=`#version 300 es
+precision highp float;
+in vec2 vP;in vec4 vCol;in float vHW;in float vL;in float vSq;uniform float uPx;out vec4 o;
+void main(){
+  if(vSq>.5){o=vCol;return;}
+  float u=clamp(vP.x,0.,vL);float d=length(vec2(vP.x-u,vP.y));
+  float c=clamp((vHW-d)/uPx+.5,0.,1.);
+  if(c<=0.)discard;
+  o=vec4(vCol.rgb,vCol.a*c);
+}`;
+  const CVS=`#version 300 es
+const vec2 P[3]=vec2[3](vec2(-1.,-1.),vec2(3.,-1.),vec2(-1.,3.));out vec2 uv;
+void main(){vec2 p=P[gl_VertexID];uv=p*.5+.5;gl_Position=vec4(p,0.,1.);}`;
+  const CFS=`#version 300 es
+precision mediump float;in vec2 uv;uniform sampler2D t;out vec4 o;void main(){o=texture(t,uv);}`;
+  function sh(t,s){const x=gl.createShader(t);gl.shaderSource(x,s);gl.compileShader(x);if(!gl.getShaderParameter(x,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(x));return x}
+  function pg(v,f){const p=gl.createProgram();gl.attachShader(p,sh(gl.VERTEX_SHADER,v));gl.attachShader(p,sh(gl.FRAGMENT_SHADER,f));gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(p));return p}
+  api.init=function(cv){
+    canvas=cv;gl=cv.getContext('webgl2',{antialias:true,alpha:false,premultipliedAlpha:true});
+    if(!gl)return false;
+    prog=pg(VS,FSRC);cprog=pg(CVS,CFS);
+    uHalf=gl.getUniformLocation(prog,'uHalf');uPx=gl.getUniformLocation(prog,'uPx');
+    vao=gl.createVertexArray();gl.bindVertexArray(vao);
+    qbuf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,qbuf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([0,0,1,0,0,1,1,1]),gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+    for(const l of [1,2,3]){gl.enableVertexAttribArray(l);gl.vertexAttribDivisor(l,1)}
+    ibuf=gl.createBuffer();obuf=gl.createBuffer();
+    evao=gl.createVertexArray();
+    tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tex);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,W*FS,H*FS,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    fbo=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,tex,0);
+    api.clear();
+    return true;
+  };
+  function ptrs(off){
+    gl.vertexAttribPointer(1,4,gl.FLOAT,false,36,off);
+    gl.vertexAttribPointer(2,4,gl.FLOAT,false,36,off+16);
+    gl.vertexAttribPointer(3,1,gl.FLOAT,false,36,off+32);
+  }
+  const paint=()=>gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
+  api.seg=function(x0,y0,x1,y1,c,w,erase){
+    if(n>=CAP)api.flush();
+    if(erase!==lastErase){runs.push({s:n,e:erase});lastErase=erase}
+    const o=n*STRIDE;
+    data[o]=x0;data[o+1]=y0;data[o+2]=x1;data[o+3]=y1;data[o+4]=c[0];data[o+5]=c[1];data[o+6]=c[2];data[o+7]=c[3];data[o+8]=w;
+    n++;api.total++;R.dirty=true;
+  };
+  // Draw everything queued since the last flush into the persistent canvas texture.
+  api.flush=function(){
+    if(!n||!gl){n=0;runs=[];lastErase=null;return}
+    gl.bindFramebuffer(gl.FRAMEBUFFER,fbo);gl.viewport(0,0,W*FS,H*FS);
+    gl.useProgram(prog);gl.uniform2f(uHalf,W/2,H/2);gl.uniform1f(uPx,1/FS);
+    gl.bindVertexArray(vao);gl.bindBuffer(gl.ARRAY_BUFFER,ibuf);
+    gl.bufferData(gl.ARRAY_BUFFER,data.subarray(0,n*STRIDE),gl.STREAM_DRAW);
+    gl.enable(gl.BLEND);
+    for(let r=0;r<runs.length;r++){
+      const st=runs[r].s,en=r+1<runs.length?runs[r+1].s:n;if(en<=st)continue;
+      ptrs(st*36);
+      if(runs[r].e)gl.blendFuncSeparate(gl.ZERO,gl.ONE_MINUS_SRC_ALPHA,gl.ZERO,gl.ONE_MINUS_SRC_ALPHA);else paint();
+      gl.drawArraysInstanced(gl.TRIANGLE_STRIP,0,4,en-st);
+    }
+    n=0;runs=[];lastErase=null;
+  };
+  api.clear=function(){
+    n=0;runs=[];lastErase=null;R.dirty=true;
+    if(!gl)return;
+    gl.bindFramebuffer(gl.FRAMEBUFFER,fbo);gl.viewport(0,0,W*FS,H*FS);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
+  };
+  api.present=function(bg,turtles,cssW){
+    if(!gl)return;
+    api.flush();
+    const cw=canvas.width,ch=canvas.height;
+    gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(0,0,cw,ch);
+    gl.clearColor(bg[0],bg[1],bg[2],1);gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
+    gl.useProgram(cprog);gl.bindVertexArray(evao);gl.bindTexture(gl.TEXTURE_2D,tex);gl.drawArrays(gl.TRIANGLES,0,3);
+    // turtle sprites, rebuilt every frame
+    let on=0;const k=W/Math.max(1,cssW),s=Math.max(7,8*k);
+    const lum=bg[0]*.3+bg[1]*.59+bg[2]*.11,oc=lum>.5?[0,0,0,.55]:[1,1,1,.6];
+    const need=turtles.length*6*STRIDE;if(odata.length<need)odata=new Float32Array(need*2);
+    const put=(x0,y0,x1,y1,c,w)=>{const o=on*STRIDE;odata[o]=x0;odata[o+1]=y0;odata[o+2]=x1;odata[o+3]=y1;odata[o+4]=c[0];odata[o+5]=c[1];odata[o+6]=c[2];odata[o+7]=c[3];odata[o+8]=w;on++};
+    for(const pass of [0,1])for(const T of turtles){
+      if(!T.vis)continue;
+      const r=T.h*DEG,tx=T.x+Math.sin(r)*s*1.35,ty=T.y+Math.cos(r)*s*1.35,
+        lx=T.x+Math.sin(r+2.45)*s,ly=T.y+Math.cos(r+2.45)*s,rx=T.x+Math.sin(r-2.45)*s,ry=T.y+Math.cos(r-2.45)*s;
+      const c=pass?[T.c[0],T.c[1],T.c[2],1]:oc,w=(pass?1.6:3.6)*k;
+      put(tx,ty,lx,ly,c,w);put(lx,ly,rx,ry,c,w);put(rx,ry,tx,ty,c,w);
+    }
+    if(on){
+      gl.useProgram(prog);gl.uniform2f(uHalf,W/2,H/2);gl.uniform1f(uPx,W/cw);
+      gl.bindVertexArray(vao);gl.bindBuffer(gl.ARRAY_BUFFER,obuf);
+      gl.bufferData(gl.ARRAY_BUFFER,odata.subarray(0,on*STRIDE),gl.STREAM_DRAW);
+      ptrs(0);paint();gl.drawArraysInstanced(gl.TRIANGLE_STRIP,0,4,on);
+    }
+  };
+  return api;
+})();
+
+// ======================= Examples =======================
+const HUE=`
+TO HUE :deg
+  OUTPUT (LIST 128 + 127 * COS :deg
+               128 + 127 * COS :deg - 120
+               128 + 127 * COS :deg + 120)
+END
+`;
+const EXAMPLES={
+'Mandelbrot · 12 turtles':`; Parallel Mandelbrot. :n turtles take interleaved rows and
+; render at the same time. ITER never moves a turtle, so the
+; compiler emits it as a plain JavaScript function: the hot
+; loop runs at JIT speed with no scheduler overhead.
+
+TO STARTUP
+  CS SETBG 0 HT
+  MAKE "n 12        ; number of turtles
+  MAKE "px 2        ; pixel size, in turtle steps
+  MAKE "max 80      ; iteration limit
+  REPEAT :n [LAUNCH [BAND REPCOUNT - 1]]
+END
+
+TO BAND :k
+  ST PU SETW :px
+  LOCAL "y
+  MAKE "y 320 - :px / 2 - :k * :px
+  WHILE [:y > -320] [
+    ROW :y
+    MAKE "y :y - :n * :px
+  ]
+  DIE
+END
+
+TO ROW :y
+  LOCAL "x
+  MAKE "x -480 + :px / 2
+  SETXY :x :y SETH 90
+  REPEAT 960 / :px [
+    SETPC SHADE ITER :x / 270 - 0.65 :y / 270
+    SETX :x DOT
+    MAKE "x :x + :px
+  ]
+END
+
+TO ITER :cr :ci
+  LOCAL "zr LOCAL "zi LOCAL "t LOCAL "i
+  MAKE "zr 0 MAKE "zi 0 MAKE "i 0
+  WHILE [AND :i < :max  :zr * :zr + :zi * :zi < 4] [
+    MAKE "t :zr * :zr - :zi * :zi + :cr
+    MAKE "zi 2 * :zr * :zi + :ci
+    MAKE "zr :t
+    MAKE "i :i + 1
+  ]
+  OUTPUT :i
+END
+
+TO SHADE :i
+  IF :i = :max [OUTPUT [0 0 0]]
+  OUTPUT HUE 210 + 7 * :i
+END
+`+HUE,
+'Spiral swarm · 24 turtles':`; 24 turtles launched at once, each drawing one spiral arm.
+
+TO STARTUP
+  CS SETBG 15 HT
+  REPEAT 24 [LAUNCH [ARM REPCOUNT]]
+END
+
+TO ARM :i
+  ST SETW 2.5
+  SETH :i * 15
+  REPEAT 420 [
+    SETPC HUE :i * 15 + REPCOUNT / 2
+    FD REPCOUNT / 50
+    RT 1.6
+  ]
+  HT
+END
+`+HUE,
+'Forking tree · up to 512 turtles':`; Every fork LAUNCHes a new turtle, so all branches at one
+; depth grow together. The canopy has 512 turtles alive at once.
+
+TO STARTUP
+  CS SETBG 15 HT
+  PU SETXY 0 -310 PD ST
+  BRANCH 150 0
+END
+
+TO BRANCH :len :depth
+  IF :depth = 10 [DIE]
+  SETW 14 * POWER 0.68 :depth
+  SETPC (LIST 90 - 6 * :depth  60 + 16 * :depth  40)
+  REPEAT 10 [FD :len / 10]
+  LT 20 + RANDOM 10
+  LAUNCH [RT 45 BRANCH :len * 0.72 :depth + 1]
+  BRANCH :len * 0.72 :depth + 1
+END
+`,
+'Koch snowflake · 3 turtles':`; One turtle per side of the triangle, recursing in parallel.
+
+TO STARTUP
+  CS SETBG 15 HT
+  SIDE -240 138.6 90 9
+  SIDE 240 138.6 210 12
+  SIDE 0 -277.1 330 5
+END
+
+TO SIDE :x :y :h :c
+  LAUNCH [PU SETXY :x :y SETH :h PD ST SETW 1.5 SETPC :c KOCH 480 5 HT]
+END
+
+TO KOCH :len :d
+  IF :d = 0 [FD :len STOP]
+  KOCH :len / 3 :d - 1 LT 60
+  KOCH :len / 3 :d - 1 RT 120
+  KOCH :len / 3 :d - 1 LT 60
+  KOCH :len / 3 :d - 1
+END
+`,
+'Squares · classic':`; The classic single-turtle LogoWriter page.
+
+TO STARTUP
+  CS SETBG 15 SETW 1.5
+  PU SETXY 0 -90 PD
+  REPEAT 120 [
+    SETPC HUE REPCOUNT * 3
+    SQUARE REPCOUNT * 2.2
+    RT 3
+  ]
+END
+
+TO SQUARE :s
+  REPEAT 4 [FD :s RT 90]
+END
+`+HUE,
+'Stress test · 256 turtles':`; 256 turtles x 4000 steps = about 1 million line segments.
+; Switch speed to Warp and press Run. The command center
+; reports the wall-clock time when the last turtle finishes.
+
+TO STARTUP
+  CS SETBG 0 HT
+  REPEAT 256 [LAUNCH [WALK REPCOUNT]]
+END
+
+TO WALK :i
+  SETW 1
+  SETPC HUE :i * 1.4
+  SETH RANDOM 360
+  REPEAT 4000 [FD 2.5 RT (RANDOM 91) - 45]
+  DIE
+END
+`+HUE,
+};
+
+// Complex-plane pages share one parallel row renderer; each supplies PIXEL :x :y → [r g b].
+const PLANE=(intro,n,mx,procs)=>`${intro}
+
+TO STARTUP
+  CS SETBG 0 HT
+  MAKE "n ${n}        ; number of turtles
+  MAKE "px 2         ; pixel size, in turtle steps
+  MAKE "max ${mx}       ; iteration limit
+  REPEAT :n [LAUNCH [BAND REPCOUNT - 1]]
+END
+
+TO BAND :k
+  ST PU SETW :px
+  LOCAL "y
+  MAKE "y 320 - :px / 2 - :k * :px
+  WHILE [:y > -320] [
+    ROW :y
+    MAKE "y :y - :n * :px
+  ]
+  DIE
+END
+
+TO ROW :y
+  LOCAL "x
+  MAKE "x -480 + :px / 2
+  SETXY :x :y SETH 90
+  REPEAT 960 / :px [
+    SETPC PIXEL :x :y
+    SETX :x DOT
+    MAKE "x :x + :px
+  ]
+END
+${procs}`;
+
+Object.assign(EXAMPLES,{
+'Polyspiral':`; POLYSPI, the classic. Each pass turns a fixed angle and
+; grows the step a little. Try other angles in the command
+; center:  CS POLY 2 121   or   CS POLY 3 144
+
+TO STARTUP
+  CS SETBG 15 SETW 1.5
+  POLY 2 91
+END
+
+TO POLY :inc :angle
+  LOCAL "side
+  MAKE "side 0
+  REPEAT 220 [
+    SETPC HUE REPCOUNT * 1.5
+    FD :side RT :angle
+    MAKE "side :side + :inc
+  ]
+END
+`+HUE,
+'Circle of circles':`; 36 circles, each rotated 10 degrees from the last.
+
+TO STARTUP
+  CS SETBG 15 SETW 1.5
+  REPEAT 36 [SETPC HUE REPCOUNT * 10 CIRCLE 120 RT 10]
+END
+
+TO CIRCLE :r
+  REPEAT 90 [FD :r * PI / 45 RT 4]
+END
+`+HUE,
+'Star polygons · 24 turtles':`; Star polygons {n/k}: n points, joining every k-th one.
+; Columns are n = 5 to 12, rows are k = 1 to 3.
+; One turtle per star, all drawn at once.
+
+TO STARTUP
+  CS SETBG 15 HT
+  FOR [k 1 3] [FOR [n 5 12] [LAUNCH [STAR :n :k]]]
+END
+
+TO STAR :n :k
+  PU SETXY -420 + (:n - 5) * 120  210 - (:k - 1) * 210
+  SETH 0 FD 60 PD ST
+  SETW 1.6 SETPC HUE :n * 40 + :k * 90
+  SETH 90 + 180 * :k / :n
+  REPEAT :n [FD 120 * SIN (180 * :k / :n) RT 360 * :k / :n]
+  HT
+END
+`+HUE,
+'Butterfly curve':`; Temple Fay's butterfly:
+; r = e^cos t − 2 cos 4t − sin^5 (t / 12), for t up to 12π.
+
+TO STARTUP
+  CS SETBG 15 HT SETW 1.2
+  PU
+  FOR [t 0 2160 0.6] [
+    SETPC HUE :t / 3
+    PT :t
+    PD
+  ]
+END
+
+TO PT :t
+  LOCAL "r
+  MAKE "r (EXP COS :t) - 2 * (COS 4 * :t) - (POWER (SIN :t / 12) 5)
+  SETXY 110 * :r * (SIN :t)  110 * :r * (COS :t) - 70
+END
+`+HUE,
+'Phyllotaxis · 8 turtles':`; A sunflower head. Seed n sits at angle n × 137.508°
+; (the golden angle) and radius proportional to √n.
+; 8 turtles each plant every 8th seed.
+
+TO STARTUP
+  CS SETBG 0 HT
+  REPEAT 8 [LAUNCH [SEEDS REPCOUNT - 1]]
+END
+
+TO SEEDS :k
+  PU SETW 9 ST
+  FOR [n :k 2000 8] [
+    SETXY 6.8 * (SQRT :n) * (SIN :n * 137.508)  6.8 * (SQRT :n) * (COS :n * 137.508)
+    SETPC (LIST 110 + :n / 15  50 + :n / 11  20)
+    DOT
+  ]
+  DIE
+END
+`,
+'Sierpinski triangle':`; Recursive Sierpinski triangle, depth 6 (729 triangles).
+
+TO STARTUP
+  CS SETBG 15 HT SETW 1.2
+  PU SETXY -300 -265 PD SETH 30
+  SIERP 600 6
+END
+
+TO SIERP :s :d
+  IF :d = 0 [SETPC HUE XCOR / 2 + YCOR / 2  REPEAT 3 [FD :s RT 120] STOP]
+  SIERP :s / 2 :d - 1
+  FD :s / 2
+  SIERP :s / 2 :d - 1
+  BK :s / 2 RT 60 FD :s / 2 LT 60
+  SIERP :s / 2 :d - 1
+  RT 60 BK :s / 2 LT 60
+END
+`+HUE,
+'Dragon curves · 4 turtles':`; Four Heighway dragons from one point, one turtle each.
+; Four copies rotated 90° tile the plane around the origin.
+
+TO STARTUP
+  CS SETBG 0 HT
+  REPEAT 4 [LAUNCH [SETH 90 * REPCOUNT  SETPC HUE 90 * REPCOUNT  SETW 1.5  ST  DRAGON 12 4.2 1  HT]]
+END
+
+TO DRAGON :n :len :sign
+  IF :n = 0 [FD :len STOP]
+  DRAGON :n - 1 :len 1
+  RT 90 * :sign
+  DRAGON :n - 1 :len -1
+END
+`+HUE,
+'Hilbert curve':`; Hilbert curve, order 6: a single line that visits every
+; cell of a 64 × 64 grid.
+
+TO STARTUP
+  CS SETBG 15 HT SETW 2
+  MAKE "c 0
+  PU SETXY -283.5 -283.5 SETH 0 PD
+  HILBERT 6 9 90
+END
+
+TO HILBERT :n :s :a
+  IF :n = 0 [STOP]
+  RT :a
+  HILBERT :n - 1 :s (-:a)
+  STEP :s LT :a
+  HILBERT :n - 1 :s :a
+  STEP :s
+  HILBERT :n - 1 :s :a
+  LT :a STEP :s
+  HILBERT :n - 1 :s (-:a)
+  RT :a
+END
+
+TO STEP :s
+  MAKE "c :c + 1
+  SETPC HUE :c / 11
+  FD :s
+END
+`+HUE,
+'Lévy C curve':`; Lévy C curve, 16,384 segments. Each segment is replaced by
+; two at right angles, each 1/√2 as long.
+
+TO STARTUP
+  CS SETBG 0 HT SETW 1.2
+  PU SETXY -190 -150 SETH 90 PD
+  LEVY 14 380
+END
+
+TO LEVY :n :len
+  IF :n = 0 [SETPC HUE XCOR + YCOR  FD :len STOP]
+  LT 45 LEVY :n - 1 :len / 1.41421356
+  RT 90 LEVY :n - 1 :len / 1.41421356
+  LT 45
+END
+`+HUE,
+'Pythagoras tree · up to 1024 turtles':`; Pythagoras tree. Each square spawns a turtle for its left
+; child and keeps the right one itself, so whole levels grow
+; together.
+
+TO STARTUP
+  CS SETBG 15 HT SETW 1.3
+  PU SETXY -55 -310 SETH 0 PD ST
+  PYTREE 110 0
+END
+
+TO PYTREE :s :d
+  IF :d = 11 [DIE]
+  SETPC (LIST 120 - :d * 9  70 + :d * 14  50 + :d * 4)
+  REPEAT 4 [FD :s RT 90]
+  FD :s LT 45
+  LAUNCH [PYTREE :s * 0.70711 :d + 1]
+  RT 90 FD :s * 0.70711
+  PYTREE :s * 0.70711 :d + 1
+END
+`,
+'Fractal plant':`; A randomized plant. The first three levels LAUNCH a turtle
+; per side branch; deeper levels recurse on one turtle.
+; Run it again for a different plant.
+
+TO STARTUP
+  CS SETBG 15 HT
+  PU SETXY 0 -318 SETH 0 PD ST
+  PLANT 175 0
+END
+
+TO PLANT :len :d
+  IF :len < 6 [STOP]
+  LOCAL "a LOCAL "b
+  MAKE "a 16 + RANDOM 20
+  MAKE "b 16 + RANDOM 20
+  SETW :len / 14 + 0.5
+  SETPC (LIST 80 - 4 * :d  80 + 16 * :d  40)
+  FD :len
+  IFELSE :d < 3 [
+    LAUNCH [LT :a PLANT :len * 0.56 :d + 1 DIE]
+    LAUNCH [RT :b PLANT :len * 0.56 :d + 1 DIE]
+  ] [
+    LT :a PLANT :len * 0.56 :d + 1
+    RT :a + :b PLANT :len * 0.56 :d + 1
+    LT :b
+  ]
+  PLANT :len * 0.7 :d + 1
+  PU BK :len PD
+END
+`,
+'Sierpinski carpet · 73 turtles':`; Sierpinski carpet. Each square stamps its center hole with
+; DOT, then fills the eight surrounding squares. The first
+; two levels LAUNCH a turtle per square.
+
+TO STARTUP
+  CS SETBG 0 HT PU
+  SETW 600 SETPC [238 230 214] DOT
+  CARPET 0 0 600 0
+END
+
+TO CARPET :x :y :s :d
+  IF :d = 5 [STOP]
+  SETXY :x :y SETW :s / 3 SETPC HUE 20 + :d * 50 DOT
+  LOCAL "t
+  MAKE "t :s / 3
+  FOR [i -1 1] [FOR [j -1 1] [
+    IF NOT AND :i = 0 :j = 0 [
+      IFELSE :d < 2 [
+        LAUNCH [ST CARPET :x + :i * :t :y + :j * :t :t :d + 1 DIE]
+      ] [
+        CARPET :x + :i * :t :y + :j * :t :t :d + 1
+      ]
+    ]
+  ]]
+END
+`+HUE,
+'Barnsley fern · 8 turtles':`; Barnsley's fern: an iterated function system. Each turtle
+; plays the chaos game independently, 15,000 points apiece.
+
+TO STARTUP
+  CS SETBG 0 HT
+  REPEAT 8 [LAUNCH [FERN]]
+END
+
+TO FERN
+  PU HT SETW 1.3
+  LOCAL "x LOCAL "y LOCAL "t LOCAL "r
+  MAKE "x 0 MAKE "y 0
+  REPEAT 15000 [
+    MAKE "r RANDOM 100
+    MAKE "t :x
+    IFELSE :r < 1 [MAKE "x 0 MAKE "y 0.16 * :y] [
+    IFELSE :r < 86 [MAKE "x 0.85 * :x + 0.04 * :y  MAKE "y -0.04 * :t + 0.85 * :y + 1.6] [
+    IFELSE :r < 93 [MAKE "x 0.2 * :x - 0.26 * :y  MAKE "y 0.23 * :t + 0.22 * :y + 1.6]
+                   [MAKE "x -0.15 * :x + 0.28 * :y  MAKE "y 0.26 * :t + 0.24 * :y + 0.44]]]
+    SETXY :x * 62  :y * 62 - 312
+    SETPC (LIST 30 + 14 * :y  110 + 13 * :y  50)
+    DOT
+  ]
+  DIE
+END
+`,
+'Chaos game · 6 turtles':`; The chaos game: jump halfway toward a random corner, plot,
+; repeat. Points pile up on a Sierpinski triangle. Colors show
+; which corner each point jumped toward.
+
+TO STARTUP
+  CS SETBG 0 HT
+  MAKE "vx [0 -360 360]
+  MAKE "vy [312 -300 -300]
+  REPEAT 6 [LAUNCH [CHAOS]]
+END
+
+TO CHAOS
+  PU HT SETW 1.3
+  LOCAL "x LOCAL "y LOCAL "v
+  MAKE "x 0 MAKE "y 0
+  REPEAT 20000 [
+    MAKE "v 1 + RANDOM 3
+    MAKE "x (:x + ITEM :v :vx) / 2
+    MAKE "y (:y + ITEM :v :vy) / 2
+    SETPC ITEM :v [[255 96 96] [96 220 128] [96 150 255]]
+    SETXY :x :y DOT
+  ]
+  DIE
+END
+`,
+'Julia set · 16 turtles':PLANE(`; Julia set for c = −0.8 + 0.156i, rendered by 16 turtles.
+; PIXEL and JITER are pure, so they compile to plain functions.`,16,120,`
+TO PIXEL :x :y
+  OUTPUT SHADE JITER :x / 300 :y / 300
+END
+
+TO JITER :zr :zi
+  LOCAL "t LOCAL "i
+  MAKE "i 0
+  WHILE [AND :i < :max  :zr * :zr + :zi * :zi < 4] [
+    MAKE "t :zr * :zr - :zi * :zi - 0.8
+    MAKE "zi 2 * :zr * :zi + 0.156
+    MAKE "zr :t
+    MAKE "i :i + 1
+  ]
+  OUTPUT :i
+END
+
+TO SHADE :i
+  IF :i = :max [OUTPUT [12 10 30]]
+  OUTPUT HUE 280 + 11 * :i
+END
+`+HUE),
+'Burning Ship · 16 turtles':PLANE(`; The Burning Ship: like the Mandelbrot set, but it takes the
+; absolute value of the imaginary part each step.`,16,90,`
+TO PIXEL :x :y
+  OUTPUT SHADE SHIP :x / 240 - 0.5  0 - :y / 240 - 0.5
+END
+
+TO SHIP :cr :ci
+  LOCAL "zr LOCAL "zi LOCAL "t LOCAL "i
+  MAKE "zr 0 MAKE "zi 0 MAKE "i 0
+  WHILE [AND :i < :max  :zr * :zr + :zi * :zi < 4] [
+    MAKE "t :zr * :zr - :zi * :zi + :cr
+    MAKE "zi (ABS 2 * :zr * :zi) + :ci
+    MAKE "zr :t
+    MAKE "i :i + 1
+  ]
+  OUTPUT :i
+END
+
+TO SHADE :i
+  LOCAL "t
+  IF :i = :max [OUTPUT [0 0 0]]
+  MAKE "t SQRT :i / :max
+  OUTPUT (LIST 255 * :t  210 * :t * :t  70 * :t * :t * :t)
+END
+`),
+'Newton fractal · 16 turtles':PLANE(`; Newton's method on z³ = 1. Each pixel is colored by the root
+; it converges to, darker the longer it takes. The basin edges
+; are fractal.`,16,40,`
+TO PIXEL :x :y
+  OUTPUT NEWTON :x / 320 :y / 320
+END
+
+TO NEWTON :x :y
+  LOCAL "a LOCAL "b LOCAL "fr LOCAL "fi LOCAL "dr LOCAL "di LOCAL "d LOCAL "i
+  MAKE "i 0
+  WHILE [:i < :max] [
+    MAKE "a :x * :x - :y * :y
+    MAKE "b 2 * :x * :y
+    MAKE "fr :a * :x - :b * :y - 1
+    MAKE "fi :a * :y + :b * :x
+    IF (:fr * :fr + :fi * :fi) < 0.000001 [OUTPUT ROOTCOLOR :x :y :i]
+    MAKE "dr 3 * :a
+    MAKE "di 3 * :b
+    MAKE "d :dr * :dr + :di * :di
+    IF :d = 0 [OUTPUT [0 0 0]]
+    MAKE "x :x - (:fr * :dr + :fi * :di) / :d
+    MAKE "y :y - (:fi * :dr - :fr * :di) / :d
+    MAKE "i :i + 1
+  ]
+  OUTPUT [0 0 0]
+END
+
+TO ROOTCOLOR :x :y :i
+  LOCAL "k
+  MAKE "k 1 - :i / 28
+  IF :k < 0.18 [MAKE "k 0.18]
+  IF :x > 0 [OUTPUT (LIST 245 * :k  95 * :k  75 * :k)]
+  IF :y > 0 [OUTPUT (LIST 90 * :k  210 * :k  130 * :k)]
+  OUTPUT (LIST 80 * :k  130 * :k  245 * :k)
+END
+`),
+'Lissajous grid · 20 turtles':`; Lissajous figures x = cos at, y = sin bt.
+; Columns are a = 1 to 5, rows are b = 1 to 4.
+
+TO STARTUP
+  CS SETBG 15 HT
+  FOR [b 1 4] [FOR [a 1 5] [LAUNCH [LISSA :a :b]]]
+END
+
+TO LISSA :a :b
+  LOCAL "cx LOCAL "cy
+  MAKE "cx -384 + (:a - 1) * 192
+  MAKE "cy 240 - (:b - 1) * 160
+  PU SETXY :cx + 80 :cy PD ST SETW 1.6
+  FOR [t 0 360 1] [
+    SETPC HUE :t + :a * 40
+    SETXY :cx + 80 * (COS :a * :t)  :cy + 64 * (SIN :b * :t)
+  ]
+  HT
+END
+`+HUE,
+'Rose curves · 18 turtles':`; Roses r = cos (n/d · t). Columns are n = 1 to 6,
+; rows are d = 1 to 3.
+
+TO STARTUP
+  CS SETBG 0 HT
+  FOR [d 1 3] [FOR [n 1 6] [LAUNCH [ROSE :n :d]]]
+END
+
+TO ROSE :n :d
+  LOCAL "cx LOCAL "cy LOCAL "r
+  MAKE "cx -400 + (:n - 1) * 160
+  MAKE "cy 213 - (:d - 1) * 213
+  PU SETXY :cx + 70 :cy PD ST SETW 1.4
+  FOR [t 0 720 * :d 2] [
+    MAKE "r 70 * COS :t * :n / :d
+    SETPC HUE :t / :d + :n * 50
+    SETXY :cx + :r * (COS :t)  :cy + :r * (SIN :t)
+  ]
+  HT
+END
+`+HUE,
+'Spirograph · 5 turtles':`; Hypotrochoids: a pen at distance d from the center of a
+; circle of radius r rolling inside one of radius R.
+; GCD works out how many turns close each curve.
+
+TO STARTUP
+  CS SETBG 0 HT
+  LAUNCH [TRACE 96 36 60 [255 120 90 210]]
+  LAUNCH [TRACE 96 28 50 [255 210 90 210]]
+  LAUNCH [TRACE 96 60 80 [110 220 140 210]]
+  LAUNCH [TRACE 96 42 70 [110 170 255 210]]
+  LAUNCH [TRACE 96 22 30 [220 130 255 210]]
+END
+
+TO TRACE :bigr :r :d :c
+  LOCAL "k LOCAL "rev
+  MAKE "k (:bigr - :r) / :r
+  MAKE "rev :r / GCD :bigr :r
+  PU SETXY 2.45 * (:bigr - :r + :d) 0 PD ST SETW 1.4 SETPC :c
+  FOR [t 0 360 * :rev 1.5] [
+    SETXY 2.45 * ((:bigr - :r) * (COS :t) + :d * (COS :k * :t))  2.45 * ((:bigr - :r) * (SIN :t) - :d * (SIN :k * :t))
+  ]
+  HT
+END
+
+TO GCD :a :b
+  IF :b = 0 [OUTPUT :a]
+  OUTPUT GCD :b REMAINDER :a :b
+END
+`,
+'Moiré rings · 80 turtles':`; Two sets of 40 concentric rings, one turtle per ring.
+; Where they overlap, interference bands appear.
+
+TO STARTUP
+  CS SETBG 15 HT
+  FOR [k 1 40] [
+    LAUNCH [RING -90 0 :k * 9]
+    LAUNCH [RING 90 0 :k * 9]
+  ]
+END
+
+TO RING :cx :cy :r
+  PU SETXY :cx + :r :cy SETH 0 PD
+  SETW 2.4 SETPC 0
+  REPEAT 180 [FD :r * PI / 90 LT 2]
+END
+`,
+'Truchet tiles · 16 turtles':`; Truchet tiles: each square holds two quarter circles in one
+; of two random orientations. One turtle per row.
+
+TO STARTUP
+  CS SETBG 15 HT
+  MAKE "s 40
+  FOR [row 0 15] [LAUNCH [TROW :row]]
+END
+
+TO TROW :row
+  ST SETW 5
+  FOR [col 0 23] [TILE -480 + :col * :s  -320 + :row * :s]
+  DIE
+END
+
+TO TILE :x :y
+  SETPC HUE (:x + :y) / 3 + 200
+  IFELSE 0 = RANDOM 2 [
+    ARC :x :y 0
+    ARC :x + :s :y + :s 180
+  ] [
+    ARC :x + :s :y 90
+    ARC :x :y + :s 270
+  ]
+END
+
+TO ARC :ox :oy :a
+  PU SETXY :ox + :s / 2 * (COS :a)  :oy + :s / 2 * (SIN :a) PD
+  FOR [t :a :a + 90 10] [SETXY :ox + :s / 2 * (COS :t)  :oy + :s / 2 * (SIN :t)]
+END
+`+HUE,
+'Pursuit · 6 turtles':`; The mice problem. Six turtles start on a hexagon and each
+; heads toward the next. POSOF reads another turtle's position;
+; WAIT 0 hands over to the other turtles each step so they move
+; in lockstep. Every 12 steps a faint line joins each pair.
+
+TO STARTUP
+  CS SETBG 15 HT
+  MAKE "n 6
+  REPEAT :n [LAUNCH [MOUSE REPCOUNT]]
+END
+
+TO MOUSE :i
+  LOCAL "target LOCAL "p
+  MAKE "target 1 + REMAINDER :i :n
+  PU SETXY 300 * (SIN 360 * :i / :n)  300 * (COS 360 * :i / :n) PD ST
+  SETW 1.8
+  REPEAT 400 [
+    IF (DISTANCE POSOF :target) < 3 [HT STOP]
+    IF 0 = REMAINDER REPCOUNT 12 [
+      MAKE "p POS
+      SETW 0.8 SETPC [150 150 165] SETPOS POSOF :target
+      PU SETPOS :p PD SETW 1.8
+    ]
+    SETPC HUE :i * 60
+    SETH TOWARDS POSOF :target
+    FD 2
+    WAIT 0
+  ]
+END
+`+HUE,
+'Fireworks · ~250 turtles':`; Each shell rises, then LAUNCHes 36 sparks that fall under
+; gravity and fade (the 4th color number is opacity).
+
+TO STARTUP
+  CS SETBG 0 HT
+  REPEAT 7 [LAUNCH [SHELL]]
+END
+
+TO SHELL
+  LOCAL "h LOCAL "c
+  HT PU SETXY (RANDOM 700) - 350 -320 SETH 0
+  WAIT RANDOM 100
+  MAKE "h 380 + RANDOM 200
+  ST PD SETW 1.5 SETPC [200 200 200 120]
+  REPEAT 40 [FD :h / 40 WAIT 0]
+  HT
+  MAKE "c RANDOM 360
+  REPEAT 36 [LAUNCH [SPARK :c + RANDOM 40  REPCOUNT * 10]]
+  DIE
+END
+
+TO SPARK :hue :ang
+  LOCAL "vx LOCAL "vy LOCAL "s
+  HT SETW 2
+  MAKE "s 2 + (RANDOM 100) / 50
+  MAKE "vx :s * SIN :ang
+  MAKE "vy :s * COS :ang
+  REPEAT 60 [
+    SETPC LPUT 255 - 4 * REPCOUNT HUE :hue
+    SETXY XCOR + :vx  YCOR + :vy
+    MAKE "vy :vy - 0.08
+    MAKE "vx :vx * 0.985
+    WAIT 0
+  ]
+  DIE
+END
+`+HUE,
+'Billiards · 12 turtles':`; Twelve balls bounce around a table, leaving trails.
+; WAIT 0 makes every ball take one step per turn.
+; Switch to Warp to fill the table quickly.
+
+TO STARTUP
+  CS SETBG 15 HT
+  SETW 3 SETPC 8 PU SETXY -460 -300 PD
+  REPEAT 2 [FD 600 RT 90 FD 920 RT 90]
+  REPEAT 12 [LAUNCH [BALL REPCOUNT]]
+END
+
+TO BALL :i
+  LOCAL "vx LOCAL "vy
+  PU HOME PD ST SETW 1.5 SETPC HUE :i * 30
+  MAKE "vx 3.2 * SIN :i * 30 + 7
+  MAKE "vy 3.2 * COS :i * 30 + 7
+  REPEAT 900 [
+    IF OR XCOR + :vx > 457 XCOR + :vx < -457 [MAKE "vx 0 - :vx]
+    IF OR YCOR + :vy > 297 YCOR + :vy < -297 [MAKE "vy 0 - :vy]
+    SETXY XCOR + :vx  YCOR + :vy
+    WAIT 0
+  ]
+END
+`+HUE,
+'Brownian bloom · 64 turtles':`; 64 random walkers leave the center at once. Translucent
+; pens make the busiest areas glow.
+
+TO STARTUP
+  CS SETBG 0 HT
+  REPEAT 64 [LAUNCH [WANDER REPCOUNT]]
+END
+
+TO WANDER :i
+  SETW 1.3 SETPC LPUT 120 HUE :i * 5.6
+  REPEAT 2500 [SETH RANDOM 360 FD 2.6]
+  DIE
+END
+`+HUE,
+});
+
+const GROUPS={
+  'Classics':['Squares · classic','Polyspiral','Circle of circles','Star polygons · 24 turtles','Butterfly curve','Phyllotaxis · 8 turtles'],
+  'Fractals':['Koch snowflake · 3 turtles','Sierpinski triangle','Sierpinski carpet · 73 turtles','Dragon curves · 4 turtles','Hilbert curve','Lévy C curve','Pythagoras tree · up to 1024 turtles','Forking tree · up to 512 turtles','Fractal plant','Barnsley fern · 8 turtles','Chaos game · 6 turtles'],
+  'Complex plane':['Mandelbrot · 12 turtles','Julia set · 16 turtles','Burning Ship · 16 turtles','Newton fractal · 16 turtles'],
+  'Curves':['Lissajous grid · 20 turtles','Rose curves · 18 turtles','Spirograph · 5 turtles','Moiré rings · 80 turtles','Truchet tiles · 16 turtles'],
+  'Turtle swarms':['Spiral swarm · 24 turtles','Pursuit · 6 turtles','Fireworks · ~250 turtles','Billiards · 12 turtles','Brownian bloom · 64 turtles','Stress test · 256 turtles'],
+};
+
+// ======================= UI wiring =======================
+const $=id=>document.getElementById(id);
+const cv=$('cv'),out=$('out'),src=$('src'),cmd=$('cmd'),exSel=$('ex'),statsEl=$('stats');
+let speed='fast',running=false,runStart=0,opsWin=0,opsRate=0,lastStat=0,cssW=960,hist=[],hpos=0;
+
+const glOK=(()=>{try{return GL.init(cv)}catch(e){console.error(e);return false}})();
+if(!glOK)$('nogl').hidden=false;
+
+function log(s,cls){R.out(s,cls)}
+function flushLog(){
+  if(!R.lines.length)return;
+  const frag=document.createDocumentFragment();
+  for(const [s,cls] of R.lines.splice(0)){const d=document.createElement('div');if(cls)d.className=cls;d.textContent=s;frag.appendChild(d)}
+  const atEnd=out.scrollTop+out.clientHeight>=out.scrollHeight-4;
+  out.appendChild(frag);
+  while(out.childNodes.length>300)out.removeChild(out.firstChild);
+  if(atEnd)out.scrollTop=out.scrollHeight;
+}
+function err(e,prefix){
+  if(e instanceof LogoError)log((e.line?`Line ${e.line}: `:'')+e.message,'err');
+  else log(`${prefix||'Error'}: ${e.message}`,'err');
+}
+function stopAll(msg){R.tasks=[];running=false;if(msg)log(msg,'echo')}
+
+function ensureProgram(){
+  if(R.lastSrc===src.value)return true;
+  try{loadProgram(src.value);return true}catch(e){err(e);return false}
+}
+function runPage(){
+  stopAll();resetWorld();R.lastSrc=null;
+  if(!ensureProgram())return;
+  R.t0=performance.now();runStart=R.t0;
+  if(R.procs.has('STARTUP')){startTask('STARTUP');running=true;log(`Running ${pname.value.trim()||'STARTUP'}`,'echo')}
+  else log(`Loaded ${[...R.procs.keys()].join(', ')||'no procedures'}. Add a STARTUP procedure to run on Run.`,'echo');
+}
+function runCommand(line){
+  if(!line.trim())return;
+  log('? '+line,'echo');
+  if(!ensureProgram())return;
+  if(!R.turtles.length)R.turtles=[new Turtle(0)];
+  try{startTask(line);if(!running){running=true;runStart=performance.now();R.t0=R.t0||runStart}}catch(e){err(e)}
+}
+
+function frame(now){
+  if(R.tasks.length){
+    R.k=0;let used=0;
+    try{
+      if(speed==='warp'){
+        const end=performance.now()+12;
+        for(;;){
+          let progressed=0;const t=performance.now();
+          for(let i=0;i<R.tasks.length;i++)progressed+=step(R.tasks[i],1024,t);
+          used+=progressed;
+          if(R.tasks.some(t=>t.done))R.tasks=R.tasks.filter(t=>!t.done);
+          if(!R.tasks.length||!progressed||performance.now()>end)break;
+        }
+      }else{
+        const b=speed==='turtle'?1:120,t=performance.now();
+        for(let i=0;i<R.tasks.length;i++)used+=step(R.tasks[i],b,t);
+        R.tasks=R.tasks.filter(t=>!t.done);
+      }
+    }catch(e){err(e,'Runtime error');stopAll()}
+    opsWin+=used;R.dirty=true;
+    if(R.turtles.some(T=>!T.alive)){R.turtles=R.turtles.filter(T=>T.alive);R.tasks=R.tasks.filter(t=>t.T.alive)}
+    if(!R.tasks.length&&running){
+      running=false;
+      log(`Done in ${((performance.now()-runStart)/1000).toFixed(2)} s · ${GL.total.toLocaleString()} segments`,'ok');
+    }
+  }
+  if(R.dirty){GL.present(R.bg,R.turtles,cssW);R.dirty=false}
+  if(now-lastStat>300){
+    opsRate=opsWin*1000/(now-lastStat||1);opsWin=0;lastStat=now;
+    statsEl.innerHTML=`<span class="${running?'run':''}">${running?'running':'idle'}</span><span>turtles <b>${R.turtles.length}</b></span><span>segments <b>${GL.total.toLocaleString()}</b></span><span>steps/s <b>${fmtRate(opsRate)}</b></span>`;
+  }
+  flushLog();
+  requestAnimationFrame(frame);
+}
+const fmtRate=r=>r>=1e6?(r/1e6).toFixed(1)+'M':r>=1e3?(r/1e3).toFixed(0)+'k':Math.round(r)+'';
+
+function resize(){
+  const r=cv.getBoundingClientRect();cssW=r.width||960;
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  cv.width=Math.round(r.width*dpr);cv.height=Math.round(r.width*dpr*2/3);R.dirty=true;
+}
+new ResizeObserver(resize).observe(cv);
+
+// ---- saving (browser storage: per-viewer, best effort) ----
+const pname=$('pname'),delBtn=$('del');
+const store={
+  get(k,d){try{const v=localStorage.getItem('lwgl.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem('lwgl.'+k,JSON.stringify(v));return true}catch(e){return false}},
+};
+let pages=store.get('pages',{});
+function buildMenu(sel){
+  exSel.textContent='';
+  for(const [label,names] of Object.entries(GROUPS)){
+    const g=document.createElement('optgroup');g.label=label;
+    for(const name of names){const o=document.createElement('option');o.value='ex:'+name;o.textContent=name;g.appendChild(o)}
+    exSel.appendChild(g);
+  }
+  const names=Object.keys(pages).sort((a,b)=>a.localeCompare(b));
+  if(names.length){
+    const g2=document.createElement('optgroup');g2.label='My pages';
+    for(const name of names){const o=document.createElement('option');o.value='my:'+name;o.textContent=name;g2.appendChild(o)}
+    exSel.appendChild(g2);
+  }
+  if(!sel||![...exSel.options].some(o=>o.value===sel)){
+    const o=document.createElement('option');o.value='';o.textContent='(unsaved draft)';o.hidden=true;exSel.prepend(o);sel='';
+  }
+  exSel.value=sel;delBtn.disabled=!sel.startsWith('my:');resetDel();
+}
+function loadEntry(v){
+  const name=v.slice(3);
+  src.value=v.startsWith('ex:')?EXAMPLES[name]:pages[name];
+  pname.value=v.startsWith('ex:')?'':name;
+  delBtn.disabled=!v.startsWith('my:');resetDel();saveDraft();runPage();
+}
+exSel.addEventListener('change',()=>{if(exSel.value)loadEntry(exSel.value)});
+let draftT=0;
+function saveDraft(){clearTimeout(draftT);draftT=setTimeout(()=>store.set('draft',{src:src.value,name:pname.value,sel:exSel.value}),300)}
+src.addEventListener('input',saveDraft);pname.addEventListener('input',saveDraft);
+$('save').addEventListener('click',()=>{
+  const name=pname.value.trim().replace(/\s+/g,' ');
+  if(!name){log('Type a name in the box next to Save first.','err');pname.focus();return}
+  const existed=name in pages;pages[name]=src.value;
+  if(!store.set('pages',pages)){delete pages[name];log('Couldn\'t save: this browser is blocking storage for the page. Use Copy to keep your procedures.','err');return}
+  pname.value=name;buildMenu('my:'+name);saveDraft();
+  log(`${existed?'Updated':'Saved'} "${name}" in this browser. Find it under My pages.`,'ok');
+});
+let delArmed=0;
+function resetDel(){clearTimeout(delArmed);delArmed=0;delBtn.textContent='Delete'}
+delBtn.addEventListener('click',()=>{
+  const v=exSel.value;if(!v.startsWith('my:'))return;
+  if(!delArmed){delBtn.textContent='Confirm delete';delArmed=setTimeout(resetDel,3000);return}
+  resetDel();const name=v.slice(3);delete pages[name];store.set('pages',pages);
+  buildMenu('');saveDraft();log(`Deleted "${name}". The procedures are still in the editor until you load another page.`,'echo');
+});
+$('copy').addEventListener('click',()=>{
+  const fallback=()=>{switchTab('flip');src.focus();src.select();log('Copying was blocked here. The procedures are selected; press Ctrl+C (⌘C).','echo')};
+  try{navigator.clipboard.writeText(src.value).then(()=>log('Copied the flip side to the clipboard.','ok'),fallback)}catch(e){fallback()}
+});
+const fileIn=$('file');
+$('open').addEventListener('click',()=>fileIn.click());
+function readFile(f){
+  if(!f)return;
+  if(f.size>2e6){log(`${f.name} is larger than 2 MB, which is too big for a Logo page.`,'err');return}
+  f.text().then(t=>{src.value=t.replace(/\r\n?/g,'\n');pname.value=f.name.replace(/\.(logo|lgo|txt)$/i,'');buildMenu('');saveDraft();switchTab('flip');log(`Opened ${f.name}. Save it to keep it under My pages.`,'ok');runPage()},
+    ()=>log(`Couldn't read ${f.name}.`,'err'));
+}
+fileIn.addEventListener('change',()=>{readFile(fileIn.files[0]);fileIn.value=''});
+src.addEventListener('dragover',e=>{if([...e.dataTransfer.types].includes('Files')){e.preventDefault();src.classList.add('drop')}});
+src.addEventListener('dragleave',()=>src.classList.remove('drop'));
+src.addEventListener('drop',e=>{if(e.dataTransfer.files.length){e.preventDefault();src.classList.remove('drop');readFile(e.dataTransfer.files[0])}});
+
+// ---- tabs ----
+const tabs={flip:$('tab-flip'),info:$('tab-info')},panes={flip:$('pane-flip'),info:$('pane-info')};
+function switchTab(k){
+  for(const n in tabs){const on=n===k;tabs[n].setAttribute('aria-selected',on);tabs[n].tabIndex=on?0:-1;panes[n].hidden=!on}
+  store.set('tab',k);
+}
+for(const n in tabs){
+  tabs[n].addEventListener('click',()=>switchTab(n));
+  tabs[n].addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){const k=n==='flip'?'info':'flip';switchTab(k);tabs[k].focus()}});
+}
+document.querySelectorAll('#info .toc a').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();const t=document.getElementById(a.getAttribute('href').slice(1));if(t)t.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})}));
+$('swatches').innerHTML=PALETTE.map((c,i)=>`<div class="sw"><i style="background:rgb(${c.slice(0,3).map(v=>Math.round(v*255))})"></i>${i}</div>`).join('');
+document.querySelectorAll('input[name=spd]').forEach(r=>r.addEventListener('change',()=>{speed=r.value}));
+$('run').addEventListener('click',runPage);
+$('stop').addEventListener('click',()=>{if(R.tasks.length)stopAll('Stopped')});
+src.addEventListener('keydown',e=>{
+  if(e.key==='Tab'){e.preventDefault();const s=src.selectionStart;src.setRangeText('  ',s,src.selectionEnd,'end')}
+});
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();runPage()}
+  else if(e.key==='Escape'&&R.tasks.length)stopAll('Stopped');
+});
+cmd.addEventListener('keydown',e=>{
+  if(e.key==='Enter'){const v=cmd.value;if(v.trim()){hist.push(v);hpos=hist.length}cmd.value='';runCommand(v)}
+  else if(e.key==='ArrowUp'&&hpos>0){e.preventDefault();cmd.value=hist[--hpos]}
+  else if(e.key==='ArrowDown'){e.preventDefault();hpos=Math.min(hist.length,hpos+1);cmd.value=hist[hpos]||''}
+});
+
+{
+  const d=store.get('draft',null),first='ex:Mandelbrot · 12 turtles';
+  if(d&&typeof d.src==='string'&&d.src.trim()){
+    src.value=d.src;pname.value=d.name||'';
+    const sel=d.sel&&(d.sel.startsWith('ex:')?EXAMPLES[d.sel.slice(3)]===d.src:pages[d.sel.slice(3)]===d.src)?d.sel:'';
+    buildMenu(sel);if(!sel)log('Restored your last unsaved edit.','echo');
+  }else{buildMenu(first);src.value=EXAMPLES[first.slice(3)]}
+  if(store.get('tab','flip')==='info')switchTab('info');
+}
+resize();runPage();
+requestAnimationFrame(frame);
+</script>
+
+</body>
+</html>
