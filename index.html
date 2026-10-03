@@ -1814,7 +1814,7 @@ cmd.addEventListener('keydown',e=>{
 });
 
 {
-  const d=store.get('draft',null),first='ex:Mandelbrot · 12 turtles';
+  const d=store.get('draft',null),first='ex:Barnsley fern · 8 turtles';
   if(d&&typeof d.src==='string'&&d.src.trim()){
     src.value=d.src;pname.value=d.name||'';
     const sel=d.sel&&(d.sel.startsWith('ex:')?EXAMPLES[d.sel.slice(3)]===d.src:pages[d.sel.slice(3)]===d.src)?d.sel:'';

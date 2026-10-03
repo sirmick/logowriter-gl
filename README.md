@@ -1,8 +1,12 @@
 # LogoWriter GL
 
+### [▶ Open LogoWriter GL in your browser](https://sirmick.github.io/logowriter-gl/)
+
+**https://sirmick.github.io/logowriter-gl/** · runs entirely in the page; needs a browser with WebGL 2
+
 A LogoWriter-style Logo environment in a single HTML file. Logo is compiled to JavaScript, drawing goes through WebGL 2 instancing, and any number of turtles (up to 2048) run concurrently.
 
-Open `index.html` in a browser, or serve the folder with GitHub Pages. There's no build step and no dependencies beyond Google Fonts.
+To run it locally, open `index.html` in a browser. There's no build step and no dependencies beyond Google Fonts.
 
 ## Features
 
