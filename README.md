@@ -27,3 +27,7 @@ Open `index.html` in a browser, or serve the folder with GitHub Pages. There's n
 - **Colors.** `SETPC` takes a palette number 0–15 or an `[r g b]` / `[r g b a]` list.
 
 The in-app **Info** tab has the full language reference.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
