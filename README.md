@@ -17,11 +17,20 @@ To run it locally, open `index.html` in a browser. There's no build step and no 
 - **Renderer.** Segments are instanced capsules, antialiased in the fragment shader. They're batched per frame into a persistent 1920×1280 texture, with turtles drawn as an overlay.
 - **Speed modes.** Turtle runs 1 step per turtle per frame, Fast runs 120, and Warp runs for 12 ms per frame.
 - **Examples.** 32 pages: classics, fractals (Koch, Hilbert, dragon, Lévy, Pythagoras tree, Barnsley fern), complex-plane sets (Mandelbrot, Julia, Burning Ship, Newton), curves, and turtle swarms (pursuit, fireworks, billiards, a 1M-segment stress test).
+- **Syntax highlighting.** The flip side highlights keywords, primitives, your own procedures, numbers, words, variables and comments, and underlines the line of a compile error.
+- **Inline controls.** A `;@` comment after a `MAKE` line turns that value into a slider or checkbox under the canvas. Moving it rewrites the value in the source and reruns the page:
+  ```logo
+  MAKE "n 12        ;@ 1..64 "Turtles"
+  MAKE "max 80      ;@ 10..400 step 10 "Iterations"
+  MAKE "showt TRUE  ;@ toggle "Show turtles"
+  ```
 - **Saving.** Pages are saved to browser storage, with copy, open-file and drag-and-drop support.
 
 ## Testing
 
 `node tests/run-examples.mjs` compiles and runs every example headless, with rendering stubbed out. It reports segment count, peak turtle count, time and drawing bounds for each page.
+
+`node tests/controls.mjs` parses every `;@` control in the examples, sets each one to its minimum (or flips the toggle) by rewriting the source, and checks that the page still compiles and runs.
 
 ## Dialect notes
 

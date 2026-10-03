@@ -18,16 +18,17 @@ img{max-width:100%}
 :root{
   --bg:#e8eaf1; --panel:#f6f7fb; --ink:#1a1e2c; --muted:#5b6278; --line:#cbd0de;
   --accent:#2b47c7; --accent-ink:#ffffff; --err:#b3261e; --ok:#1d7443; --code:#fdfdff;
+  --hl-com:#7a8196; --hl-ann:#a24d00; --hl-kw:#8a1f9e; --hl-ctl:#2b47c7; --hl-prim:#0b6e70; --hl-proc:#a8326a; --hl-num:#b24a00; --hl-str:#25801f; --hl-var:#6a46c9;
   --font-display:'Silkscreen', ui-monospace, monospace;
   --font-ui:'IBM Plex Sans', system-ui, -apple-system, Segoe UI, sans-serif;
   --font-code:'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#10131b; --panel:#171b26; --ink:#e4e7f0; --muted:#97a0b6; --line:#2a3044;
-  --accent:#8399ff; --accent-ink:#0c0f1c; --err:#ff8f86; --ok:#7fd3a0; --code:#131722; color-scheme:dark}}
+  --accent:#8399ff; --accent-ink:#0c0f1c; --err:#ff8f86; --ok:#7fd3a0; --code:#131722; --hl-com:#7f88a0; --hl-ann:#ffb46b; --hl-kw:#e59cf2; --hl-ctl:#8fa3ff; --hl-prim:#6fd6cf; --hl-proc:#ff8fbf; --hl-num:#ffb27a; --hl-str:#9be08d; --hl-var:#c0a8ff; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#10131b; --panel:#171b26; --ink:#e4e7f0; --muted:#97a0b6; --line:#2a3044;
-  --accent:#8399ff; --accent-ink:#0c0f1c; --err:#ff8f86; --ok:#7fd3a0; --code:#131722; color-scheme:dark}
+  --accent:#8399ff; --accent-ink:#0c0f1c; --err:#ff8f86; --ok:#7fd3a0; --code:#131722; --hl-com:#7f88a0; --hl-ann:#ffb46b; --hl-kw:#e59cf2; --hl-ctl:#8fa3ff; --hl-prim:#6fd6cf; --hl-proc:#ff8fbf; --hl-num:#ffb27a; --hl-str:#9be08d; --hl-var:#c0a8ff; color-scheme:dark}
 
 html,body{height:auto}
 body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--font-ui);padding-inline:16px;padding-block:14px 32px}
@@ -90,9 +91,35 @@ canvas{width:100%;aspect-ratio:3/2;display:block;max-width:100%}
 .btn.danger{color:var(--err)}
 .btn[disabled]{opacity:.45;cursor:default;filter:none}
 
-#src{flex:1;min-height:0;resize:none;border:0;background:var(--code);color:var(--ink);font:13px/1.55 var(--font-code);padding:12px 14px;tab-size:2;white-space:pre;overflow:auto;outline:none}
+.ed{position:relative;flex:1;min-height:0;background:var(--code)}
+#src,#hl{position:absolute;inset:0;margin:0;border:0;font:13px/1.55 var(--font-code);padding:12px 14px;tab-size:2;white-space:pre;letter-spacing:0;word-spacing:0;font-variant-ligatures:none}
+#hl{overflow:hidden;color:var(--ink);pointer-events:none}
+#src{resize:none;background:transparent;color:transparent;caret-color:var(--ink);overflow:auto;outline:none;-webkit-text-fill-color:transparent}
+#src::selection{background:color-mix(in srgb,var(--accent) 28%,transparent)}
 #src:focus-visible{box-shadow:inset 0 0 0 2px var(--accent)}
 #src.drop{box-shadow:inset 0 0 0 2px var(--accent)}
+.h-com{color:var(--hl-com);font-style:italic}
+.h-ann{color:var(--hl-ann);font-weight:500}
+.h-kw,.h-def{color:var(--hl-kw);font-weight:600}
+.h-ctl{color:var(--hl-ctl);font-weight:500}
+.h-prim{color:var(--hl-prim)}
+.h-proc{color:var(--hl-proc)}
+.h-num{color:var(--hl-num)}
+.h-str{color:var(--hl-str)}
+.h-var{color:var(--hl-var)}
+.h-br,.h-op{color:var(--muted)}
+.eline{text-decoration:underline wavy var(--err);text-underline-offset:3px;background:color-mix(in srgb,var(--err) 12%,transparent)}
+
+.ctrls{border-top:1px solid var(--line);padding:8px 12px 10px;background:var(--panel);display:flex;flex-direction:column;gap:6px}
+.ctrls-h{display:flex;justify-content:space-between;gap:12px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
+.ctrls-h b{font-family:var(--font-display);font-weight:400;letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
+.ctrl-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:6px 20px}
+.ctl{display:grid;grid-template-columns:minmax(0,8em) minmax(0,1fr) 4.2em;align-items:center;gap:10px;font-size:12.5px;min-width:0}
+.ctl label{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ctl output{font:12px var(--font-code);text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+.ctl input[type=range]{width:100%;min-width:0;accent-color:var(--accent);margin:0}
+.ctl input[type=checkbox]{justify-self:start;accent-color:var(--accent);width:16px;height:16px;margin:0}
+.ctl input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 #info{flex:1;overflow:auto;padding:4px 18px 24px;min-height:0}
 #info section{max-width:68ch}
@@ -147,6 +174,10 @@ kbd{font:11px var(--font-code);border:1px solid var(--line);border-bottom-width:
         <canvas id="cv" aria-label="Turtle drawing"></canvas>
         <div class="nogl" id="nogl" hidden>This page needs WebGL 2, which this browser didn't provide.</div>
       </div>
+      <div class="ctrls" id="ctrls" hidden>
+        <div class="ctrls-h"><b>Controls</b><span>Changes rewrite the value on the flip side and rerun the page</span></div>
+        <div class="ctrl-grid" id="ctrl-grid"></div>
+      </div>
       <div class="cc">
         <pre id="out" aria-live="polite"></pre>
         <div class="prompt"><span>?</span><input type="text" id="cmd" autocomplete="off" spellcheck="false" placeholder="Command center: try  REPEAT 6 [FD 100 RT 60]" aria-label="Command center"></div>
@@ -169,13 +200,16 @@ kbd{font:11px var(--font-code);border:1px solid var(--line);border-bottom-width:
           <button class="btn sm danger" id="del" title="Delete this saved page" disabled>Delete</button>
           <input type="file" id="file" accept=".logo,.lgo,.txt,text/plain" hidden>
         </div>
-        <textarea id="src" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Procedures"></textarea>
+        <div class="ed">
+          <pre id="hl" aria-hidden="true"></pre>
+          <textarea id="src" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="Procedures"></textarea>
+        </div>
       </div>
 
       <div class="pane" id="pane-info" role="tabpanel" aria-labelledby="tab-info" hidden>
         <div id="info">
           <nav class="toc" aria-label="Info sections">
-            <a href="#i-start">Getting started</a><a href="#i-save">Saving</a><a href="#i-turtles">Many turtles</a>
+            <a href="#i-start">Getting started</a><a href="#i-save">Saving</a><a href="#i-ctrl">Controls</a><a href="#i-turtles">Many turtles</a>
             <a href="#i-speed">Speed</a><a href="#i-screen">Screen &amp; color</a><a href="#i-lang">Language</a>
             <a href="#i-ref">Primitives</a><a href="#i-engine">How it runs</a><a href="#i-diff">Differences</a><a href="#i-keys">Keys</a>
           </nav>
@@ -207,6 +241,23 @@ END</pre>
               <li>For anything you want to keep for good, use <b>Copy</b> and paste the procedures into a file or repo. <b>Open file…</b> (or dropping a file on the editor) loads it back.</li>
               <li>This page itself is saved in your Claude artifacts, and you can share it from its Share menu. Other people get the examples, not your saved pages.</li>
             </ul>
+          </section>
+
+          <section>
+            <h3 id="i-ctrl">Controls</h3>
+            <p>Put a <code>;@</code> comment after any <code>MAKE "name value</code> line to get a control for that value under the canvas. Moving the control rewrites the number in your procedures and reruns the page, so the setting is saved and copied along with the code. Because it's a comment, Logo itself ignores it.</p>
+            <pre>MAKE "n 12      ;@ 1..64 "Turtles"
+MAKE "zoom 1.5  ;@ 0.5..4 step 0.25 "Zoom"
+MAKE "spin 90   ;@ -180..180 step 5
+MAKE "trail TRUE ;@ toggle "Show trails"</pre>
+            <ul>
+              <li><code>;@ min..max</code> makes a slider. The step defaults to 1; add <code>step s</code> for anything else. Values snap to the step's decimal places.</li>
+              <li><code>;@ toggle</code> makes a checkbox for a <code>TRUE</code>/<code>FALSE</code> value.</li>
+              <li>A label in double quotes at the end names the control. Without one, the variable name is used.</li>
+              <li>The <code>MAKE</code> can be anywhere on its line and inside any procedure, but <code>STARTUP</code> is the usual place, since Run calls it. The value must be a plain number or <code>TRUE</code>/<code>FALSE</code>, not an expression.</li>
+              <li>Typing a new annotation updates the panel as you go. Mistyped annotations are ignored rather than reported.</li>
+            </ul>
+            <p>Most examples have controls: try turtle count and iterations on the fractal sets, depth on Koch and Hilbert, or the golden angle on Phyllotaxis.</p>
           </section>
 
           <section>
@@ -319,6 +370,7 @@ END</pre>
               <li><kbd>Esc</kbd>: Stop</li>
               <li><kbd>Enter</kbd> in the command center runs the line; <kbd>↑</kbd> <kbd>↓</kbd> walk the history.</li>
               <li><kbd>Tab</kbd> in the flip side indents by two spaces.</li>
+              <li>The flip side is syntax highlighted: keywords, control words, primitives, your procedures, numbers, <code>"words</code>, <code>:variables</code>, comments and <code>;@</code> controls each get their own color. A compile error underlines its line.</li>
             </ul>
           </section>
         </div>
@@ -850,14 +902,17 @@ const EXAMPLES={
 
 TO STARTUP
   CS SETBG 0 HT
-  MAKE "n 12        ; number of turtles
-  MAKE "px 2        ; pixel size, in turtle steps
-  MAKE "max 80      ; iteration limit
+  MAKE "n 12          ;@ 1..64 "Turtles"
+  MAKE "px 2          ;@ 1..8 "Pixel size"
+  MAKE "max 80        ;@ 10..400 step 10 "Iterations"
+  MAKE "zoom 1        ;@ 0.5..8 step 0.5 "Zoom"
+  MAKE "showt TRUE    ;@ toggle "Show turtles"
   REPEAT :n [LAUNCH [BAND REPCOUNT - 1]]
 END
 
 TO BAND :k
-  ST PU SETW :px
+  IFELSE :showt [ST] [HT]
+  PU SETW :px
   LOCAL "y
   MAKE "y 320 - :px / 2 - :k * :px
   WHILE [:y > -320] [
@@ -872,7 +927,7 @@ TO ROW :y
   MAKE "x -480 + :px / 2
   SETXY :x :y SETH 90
   REPEAT 960 / :px [
-    SETPC SHADE ITER :x / 270 - 0.65 :y / 270
+    SETPC SHADE ITER :x / (270 * :zoom) - 0.65 :y / (270 * :zoom)
     SETX :x DOT
     MAKE "x :x + :px
   ]
@@ -898,17 +953,19 @@ END
 'Spiral swarm · 24 turtles':`; 24 turtles launched at once, each drawing one spiral arm.
 
 TO STARTUP
+  MAKE "arms 24     ;@ 1..72 "Arms"
+  MAKE "curl 1.6    ;@ 0..4 step 0.1 "Curl"
   CS SETBG 15 HT
-  REPEAT 24 [LAUNCH [ARM REPCOUNT]]
+  REPEAT :arms [LAUNCH [ARM REPCOUNT]]
 END
 
 TO ARM :i
   ST SETW 2.5
-  SETH :i * 15
+  SETH :i * 360 / :arms
   REPEAT 420 [
-    SETPC HUE :i * 15 + REPCOUNT / 2
+    SETPC HUE :i * 360 / :arms + REPCOUNT / 2
     FD REPCOUNT / 50
-    RT 1.6
+    RT :curl
   ]
   HT
 END
@@ -918,23 +975,27 @@ END
 
 TO STARTUP
   CS SETBG 15 HT
+  MAKE "levels 10   ;@ 1..11 "Levels"
+  MAKE "spread 45   ;@ 10..120 step 5 "Spread"
+  MAKE "ratio 0.72  ;@ 0.5..0.8 step 0.01 "Shrink"
   PU SETXY 0 -310 PD ST
   BRANCH 150 0
 END
 
 TO BRANCH :len :depth
-  IF :depth = 10 [DIE]
+  IF :depth = :levels [DIE]
   SETW 14 * POWER 0.68 :depth
   SETPC (LIST 90 - 6 * :depth  60 + 16 * :depth  40)
   REPEAT 10 [FD :len / 10]
-  LT 20 + RANDOM 10
-  LAUNCH [RT 45 BRANCH :len * 0.72 :depth + 1]
-  BRANCH :len * 0.72 :depth + 1
+  LT :spread / 2 + (RANDOM 10) - 5
+  LAUNCH [RT :spread BRANCH :len * :ratio :depth + 1]
+  BRANCH :len * :ratio :depth + 1
 END
 `,
 'Koch snowflake · 3 turtles':`; One turtle per side of the triangle, recursing in parallel.
 
 TO STARTUP
+  MAKE "depth 5     ;@ 0..6 "Depth"
   CS SETBG 15 HT
   SIDE -240 138.6 90 9
   SIDE 240 138.6 210 12
@@ -942,7 +1003,7 @@ TO STARTUP
 END
 
 TO SIDE :x :y :h :c
-  LAUNCH [PU SETXY :x :y SETH :h PD ST SETW 1.5 SETPC :c KOCH 480 5 HT]
+  LAUNCH [PU SETXY :x :y SETH :h PD ST SETW 1.5 SETPC :c KOCH 480 :depth HT]
 END
 
 TO KOCH :len :d
@@ -956,12 +1017,15 @@ END
 'Squares · classic':`; The classic single-turtle LogoWriter page.
 
 TO STARTUP
+  MAKE "count 120   ;@ 10..240 step 10 "Squares"
+  MAKE "turn 3      ;@ 0.5..30 step 0.5 "Turn"
+  MAKE "grow 2.2    ;@ 0.5..4 step 0.1 "Growth"
   CS SETBG 15 SETW 1.5
   PU SETXY 0 -90 PD
-  REPEAT 120 [
+  REPEAT :count [
     SETPC HUE REPCOUNT * 3
-    SQUARE REPCOUNT * 2.2
-    RT 3
+    SQUARE REPCOUNT * :grow
+    RT :turn
   ]
 END
 
@@ -974,15 +1038,17 @@ END
 ; reports the wall-clock time when the last turtle finishes.
 
 TO STARTUP
+  MAKE "walkers 256 ;@ 1..2047 "Turtles"
+  MAKE "steps 4000  ;@ 500..16000 step 500 "Steps each"
   CS SETBG 0 HT
-  REPEAT 256 [LAUNCH [WALK REPCOUNT]]
+  REPEAT :walkers [LAUNCH [WALK REPCOUNT]]
 END
 
 TO WALK :i
   SETW 1
-  SETPC HUE :i * 1.4
+  SETPC HUE :i * 360 / :walkers
   SETH RANDOM 360
-  REPEAT 4000 [FD 2.5 RT (RANDOM 91) - 45]
+  REPEAT :steps [FD 2.5 RT (RANDOM 91) - 45]
   DIE
 END
 `+HUE,
@@ -993,9 +1059,9 @@ const PLANE=(intro,n,mx,procs)=>`${intro}
 
 TO STARTUP
   CS SETBG 0 HT
-  MAKE "n ${n}        ; number of turtles
-  MAKE "px 2         ; pixel size, in turtle steps
-  MAKE "max ${mx}       ; iteration limit
+  MAKE "n ${n}          ;@ 1..64 "Turtles"
+  MAKE "px 2          ;@ 1..8 "Pixel size"
+  MAKE "max ${mx}        ;@ 10..400 step 10 "Iterations"
   REPEAT :n [LAUNCH [BAND REPCOUNT - 1]]
 END
 
@@ -1028,8 +1094,10 @@ Object.assign(EXAMPLES,{
 ; center:  CS POLY 2 121   or   CS POLY 3 144
 
 TO STARTUP
+  MAKE "inc 2       ;@ 0.5..6 step 0.5 "Growth"
+  MAKE "angle 91    ;@ 30..179 step 1 "Turn angle"
   CS SETBG 15 SETW 1.5
-  POLY 2 91
+  POLY :inc :angle
 END
 
 TO POLY :inc :angle
@@ -1046,7 +1114,9 @@ END
 
 TO STARTUP
   CS SETBG 15 SETW 1.5
-  REPEAT 36 [SETPC HUE REPCOUNT * 10 CIRCLE 120 RT 10]
+  MAKE "k 36      ;@ 3..120 "Circles"
+  MAKE "r 120     ;@ 20..160 step 5 "Radius"
+  REPEAT :k [SETPC HUE REPCOUNT * 360 / :k CIRCLE :r RT 360 / :k]
 END
 
 TO CIRCLE :r
@@ -1095,14 +1165,16 @@ END
 ; 8 turtles each plant every 8th seed.
 
 TO STARTUP
+  MAKE "ga 137.51   ;@ 130..145 step 0.01 "Angle"
+  MAKE "seeds 2000  ;@ 100..2000 step 100 "Seeds"
   CS SETBG 0 HT
   REPEAT 8 [LAUNCH [SEEDS REPCOUNT - 1]]
 END
 
 TO SEEDS :k
   PU SETW 9 ST
-  FOR [n :k 2000 8] [
-    SETXY 6.8 * (SQRT :n) * (SIN :n * 137.508)  6.8 * (SQRT :n) * (COS :n * 137.508)
+  FOR [n :k :seeds 8] [
+    SETXY 6.8 * (SQRT :n) * (SIN :n * :ga)  6.8 * (SQRT :n) * (COS :n * :ga)
     SETPC (LIST 110 + :n / 15  50 + :n / 11  20)
     DOT
   ]
@@ -1113,8 +1185,9 @@ END
 
 TO STARTUP
   CS SETBG 15 HT SETW 1.2
+  MAKE "depth 6     ;@ 0..8 "Depth"
   PU SETXY -300 -265 PD SETH 30
-  SIERP 600 6
+  SIERP 600 :depth
 END
 
 TO SIERP :s :d
@@ -1132,7 +1205,9 @@ END
 
 TO STARTUP
   CS SETBG 0 HT
-  REPEAT 4 [LAUNCH [SETH 90 * REPCOUNT  SETPC HUE 90 * REPCOUNT  SETW 1.5  ST  DRAGON 12 4.2 1  HT]]
+  MAKE "order 12    ;@ 1..14 "Order"
+  MAKE "len 4.2 * POWER 2 (12 - :order) / 2
+  REPEAT 4 [LAUNCH [SETH 90 * REPCOUNT  SETPC HUE 90 * REPCOUNT  SETW 1.5  ST  DRAGON :order :len 1  HT]]
 END
 
 TO DRAGON :n :len :sign
@@ -1147,9 +1222,10 @@ END
 
 TO STARTUP
   CS SETBG 15 HT SETW 2
+  MAKE "order 6     ;@ 1..8 "Order"
   MAKE "c 0
   PU SETXY -283.5 -283.5 SETH 0 PD
-  HILBERT 6 9 90
+  HILBERT :order 567 / ((POWER 2 :order) - 1) 90
 END
 
 TO HILBERT :n :s :a
@@ -1167,7 +1243,7 @@ END
 
 TO STEP :s
   MAKE "c :c + 1
-  SETPC HUE :c / 11
+  SETPC HUE :c * 360 / POWER 4 :order
   FD :s
 END
 `+HUE,
@@ -1176,8 +1252,9 @@ END
 
 TO STARTUP
   CS SETBG 0 HT SETW 1.2
+  MAKE "order 14    ;@ 1..16 "Order"
   PU SETXY -190 -150 SETH 90 PD
-  LEVY 14 380
+  LEVY :order 380
 END
 
 TO LEVY :n :len
@@ -1193,12 +1270,13 @@ END
 
 TO STARTUP
   CS SETBG 15 HT SETW 1.3
+  MAKE "depth 11    ;@ 1..11 "Depth"
   PU SETXY -55 -310 SETH 0 PD ST
   PYTREE 110 0
 END
 
 TO PYTREE :s :d
-  IF :d = 11 [DIE]
+  IF :d = :depth [DIE]
   SETPC (LIST 120 - :d * 9  70 + :d * 14  50 + :d * 4)
   REPEAT 4 [FD :s RT 90]
   FD :s LT 45
@@ -1242,13 +1320,14 @@ END
 ; two levels LAUNCH a turtle per square.
 
 TO STARTUP
+  MAKE "depth 5     ;@ 1..6 "Depth"
   CS SETBG 0 HT PU
   SETW 600 SETPC [238 230 214] DOT
   CARPET 0 0 600 0
 END
 
 TO CARPET :x :y :s :d
-  IF :d = 5 [STOP]
+  IF :d = :depth [STOP]
   SETXY :x :y SETW :s / 3 SETPC HUE 20 + :d * 50 DOT
   LOCAL "t
   MAKE "t :s / 3
@@ -1267,15 +1346,17 @@ END
 ; plays the chaos game independently, 15,000 points apiece.
 
 TO STARTUP
+  MAKE "nt 8        ;@ 1..32 "Turtles"
+  MAKE "pts 15000   ;@ 1000..60000 step 1000 "Points each"
   CS SETBG 0 HT
-  REPEAT 8 [LAUNCH [FERN]]
+  REPEAT :nt [LAUNCH [FERN]]
 END
 
 TO FERN
   PU HT SETW 1.3
   LOCAL "x LOCAL "y LOCAL "t LOCAL "r
   MAKE "x 0 MAKE "y 0
-  REPEAT 15000 [
+  REPEAT :pts [
     MAKE "r RANDOM 100
     MAKE "t :x
     IFELSE :r < 1 [MAKE "x 0 MAKE "y 0.16 * :y] [
@@ -1472,10 +1553,12 @@ END
 ; Where they overlap, interference bands appear.
 
 TO STARTUP
+  MAKE "gap 9       ;@ 4..24 step 0.5 "Ring spacing"
+  MAKE "offset 90   ;@ 0..240 step 5 "Offset"
   CS SETBG 15 HT
   FOR [k 1 40] [
-    LAUNCH [RING -90 0 :k * 9]
-    LAUNCH [RING 90 0 :k * 9]
+    LAUNCH [RING 0 - :offset 0 :k * :gap]
+    LAUNCH [RING :offset 0 :k * :gap]
   ]
 END
 
@@ -1490,13 +1573,13 @@ END
 
 TO STARTUP
   CS SETBG 15 HT
-  MAKE "s 40
-  FOR [row 0 15] [LAUNCH [TROW :row]]
+  MAKE "s 40        ;@ 16..80 step 8 "Tile size"
+  FOR [row 0 (640 / :s) - 1] [LAUNCH [TROW :row]]
 END
 
 TO TROW :row
-  ST SETW 5
-  FOR [col 0 23] [TILE -480 + :col * :s  -320 + :row * :s]
+  ST SETW :s / 8
+  FOR [col 0 (960 / :s) - 1] [TILE -480 + :col * :s  -320 + :row * :s]
   DIE
 END
 
@@ -1523,7 +1606,7 @@ END
 
 TO STARTUP
   CS SETBG 15 HT
-  MAKE "n 6
+  MAKE "n 6         ;@ 2..16 "Turtles"
   REPEAT :n [LAUNCH [MOUSE REPCOUNT]]
 END
 
@@ -1539,7 +1622,7 @@ TO MOUSE :i
       SETW 0.8 SETPC [150 150 165] SETPOS POSOF :target
       PU SETPOS :p PD SETW 1.8
     ]
-    SETPC HUE :i * 60
+    SETPC HUE :i * 360 / :n
     SETH TOWARDS POSOF :target
     FD 2
     WAIT 0
@@ -1550,8 +1633,10 @@ END
 ; gravity and fade (the 4th color number is opacity).
 
 TO STARTUP
+  MAKE "shells 7    ;@ 1..20 "Shells"
+  MAKE "sparks 36   ;@ 6..72 step 6 "Sparks each"
   CS SETBG 0 HT
-  REPEAT 7 [LAUNCH [SHELL]]
+  REPEAT :shells [LAUNCH [SHELL]]
 END
 
 TO SHELL
@@ -1563,7 +1648,7 @@ TO SHELL
   REPEAT 40 [FD :h / 40 WAIT 0]
   HT
   MAKE "c RANDOM 360
-  REPEAT 36 [LAUNCH [SPARK :c + RANDOM 40  REPCOUNT * 10]]
+  REPEAT :sparks [LAUNCH [SPARK :c + RANDOM 40  REPCOUNT * 360 / :sparks]]
   DIE
 END
 
@@ -1591,14 +1676,16 @@ TO STARTUP
   CS SETBG 15 HT
   SETW 3 SETPC 8 PU SETXY -460 -300 PD
   REPEAT 2 [FD 600 RT 90 FD 920 RT 90]
-  REPEAT 12 [LAUNCH [BALL REPCOUNT]]
+  MAKE "balls 12    ;@ 1..48 "Balls"
+  MAKE "speed 3.2   ;@ 0.5..8 step 0.1 "Speed"
+  REPEAT :balls [LAUNCH [BALL REPCOUNT]]
 END
 
 TO BALL :i
   LOCAL "vx LOCAL "vy
-  PU HOME PD ST SETW 1.5 SETPC HUE :i * 30
-  MAKE "vx 3.2 * SIN :i * 30 + 7
-  MAKE "vy 3.2 * COS :i * 30 + 7
+  PU HOME PD ST SETW 1.5 SETPC HUE :i * 360 / :balls
+  MAKE "vx :speed * SIN :i * 360 / :balls + 7
+  MAKE "vy :speed * COS :i * 360 / :balls + 7
   REPEAT 900 [
     IF OR XCOR + :vx > 457 XCOR + :vx < -457 [MAKE "vx 0 - :vx]
     IF OR YCOR + :vy > 297 YCOR + :vy < -297 [MAKE "vy 0 - :vy]
@@ -1611,13 +1698,15 @@ END
 ; pens make the busiest areas glow.
 
 TO STARTUP
+  MAKE "walkers 64  ;@ 1..512 "Walkers"
+  MAKE "steps 2500  ;@ 100..10000 step 100 "Steps each"
   CS SETBG 0 HT
-  REPEAT 64 [LAUNCH [WANDER REPCOUNT]]
+  REPEAT :walkers [LAUNCH [WANDER REPCOUNT]]
 END
 
 TO WANDER :i
-  SETW 1.3 SETPC LPUT 120 HUE :i * 5.6
-  REPEAT 2500 [SETH RANDOM 360 FD 2.6]
+  SETW 1.3 SETPC LPUT 120 HUE :i * 360 / :walkers
+  REPEAT :steps [SETH RANDOM 360 FD 2.6]
   DIE
 END
 `+HUE,
@@ -1655,15 +1744,18 @@ function err(e,prefix){
 }
 function stopAll(msg){R.tasks=[];running=false;if(msg)log(msg,'echo')}
 
+let errLine=0;
 function ensureProgram(){
   if(R.lastSrc===src.value)return true;
-  try{loadProgram(src.value);return true}catch(e){err(e);return false}
+  try{loadProgram(src.value);if(errLine){errLine=0;paintHL()}return true}
+  catch(e){err(e);errLine=e instanceof LogoError?e.line:0;paintHL();return false}
 }
-function runPage(){
+function runPage(quiet){
   stopAll();resetWorld();R.lastSrc=null;
+  syncControls();queueHL();
   if(!ensureProgram())return;
   R.t0=performance.now();runStart=R.t0;
-  if(R.procs.has('STARTUP')){startTask('STARTUP');running=true;log(`Running ${pname.value.trim()||'STARTUP'}`,'echo')}
+  if(R.procs.has('STARTUP')){startTask('STARTUP');running=true;if(!quiet)log(`Running ${pname.value.trim()||'STARTUP'}`,'echo')}
   else log(`Loaded ${[...R.procs.keys()].join(', ')||'no procedures'}. Add a STARTUP procedure to run on Run.`,'echo');
 }
 function runCommand(line){
@@ -1716,6 +1808,98 @@ function resize(){
   cv.width=Math.round(r.width*dpr);cv.height=Math.round(r.width*dpr*2/3);R.dirty=true;
 }
 new ResizeObserver(resize).observe(cv);
+
+// ---- syntax highlighting: a <pre> mirrors the textarea underneath it ----
+const hl=$('hl');
+const HL_KW=new Set(['TO','END']);
+const HL_CTL=new Set(['REPEAT','FOREVER','IF','IFELSE','WHILE','UNTIL','FOR','LAUNCH','MAKE','LOCAL','STOP','OUTPUT','OP','DIE','WAIT','REPCOUNT','TRUE','FALSE']);
+const HL_RE=/(;.*$)|("[A-Za-z0-9_.?!]*)|(:[A-Za-z0-9_.?!]+)|(\d*\.?\d+(?:[eE][+-]?\d+)?)|([A-Za-z_][A-Za-z0-9_.?!]*)|([\[\]()])|([-+*\/=<>]+)/g;
+const escH=t=>t.replace(/[&<>]/g,c=>c==='&'?'&amp;':c==='<'?'&lt;':'&gt;');
+function hlLine(ln,procs){
+  let o='',last=0,afterTO=false,m;HL_RE.lastIndex=0;
+  while((m=HL_RE.exec(ln))){
+    o+=escH(ln.slice(last,m.index));last=HL_RE.lastIndex;
+    const t=m[0];let c='';
+    if(m[1])c=t.startsWith(';@')?'h-ann':'h-com';
+    else if(m[2])c='h-str';else if(m[3])c='h-var';else if(m[4])c='h-num';
+    else if(m[5]){const u=t.toUpperCase();c=afterTO?'h-def':HL_KW.has(u)?'h-kw':HL_CTL.has(u)?'h-ctl':PRIMS[u]?'h-prim':procs.has(u)?'h-proc':'';afterTO=u==='TO';o+=c?`<span class="${c}">${escH(t)}</span>`:escH(t);continue}
+    else if(m[6])c='h-br';else c='h-op';
+    afterTO=false;o+=`<span class="${c}">${escH(t)}</span>`;
+  }
+  return o+escH(ln.slice(last));
+}
+let hlQueued=0;
+function paintHL(){
+  hlQueued=0;
+  const text=src.value,procs=new Set();
+  for(const m of text.matchAll(/^\s*TO\s+([A-Za-z0-9_.?!]+)/gim))procs.add(m[1].toUpperCase());
+  hl.innerHTML=text.split('\n').map((ln,i)=>{const h=hlLine(ln,procs);return i+1===errLine?`<span class="eline">${h||' '}</span>`:h}).join('\n')+'\n ';
+  hl.scrollTop=src.scrollTop;hl.scrollLeft=src.scrollLeft;
+}
+function queueHL(){if(!hlQueued)hlQueued=requestAnimationFrame(paintHL)}
+src.addEventListener('input',()=>{if(errLine)errLine=0;queueHL()});
+src.addEventListener('scroll',()=>{hl.scrollTop=src.scrollTop;hl.scrollLeft=src.scrollLeft});
+
+// ---- controls: MAKE "name value ;@ min..max [step s] ["Label"]  |  ;@ toggle ["Label"] ----
+const ANN_RE=/(MAKE\s+"([A-Za-z0-9_.?!]+)\s+)("?[^\s;\[\]]+)[ \t]*;@[ \t]*(.*)$/i;
+const NUM='(-?\\d*\\.?\\d+(?:[eE][+-]?\\d+)?)';
+const RANGE_RE=new RegExp(`^${NUM}\\s*\\.\\.\\s*${NUM}(?:\\s+step\\s+${NUM})?\\s*(?:"([^"]*)"?)?\\s*$`,'i');
+const TOGGLE_RE=/^toggle\b\s*(?:"([^"]*)"?)?\s*$/i;
+function parseControls(text){
+  const out=[];let off=0;
+  for(const ln of text.split('\n')){
+    const m=ANN_RE.exec(ln);
+    if(m){
+      const start=off+m.index+m[1].length,end=start+m[3].length,raw=m[3].replace(/^"/,''),spec=m[4].trim();
+      let r;
+      if((r=TOGGLE_RE.exec(spec))){
+        out.push({kind:'bool',name:m[2],label:r[1]||m[2],value:/^true$/i.test(raw),start,end});
+      }else if((r=RANGE_RE.exec(spec))){
+        const min=+r[1],max=+r[2],step=r[3]?Math.abs(+r[3]):1,v=+raw;
+        if(max>min&&step>0&&isFinite(v))out.push({kind:'range',name:m[2],label:r[4]||m[2],min,max,step,value:v,start,end,dec:(String(r[3]||'').split('.')[1]||'').length});
+      }
+    }
+    off+=ln.length+1;
+  }
+  return out;
+}
+const ctrlBox=$('ctrls'),ctrlGrid=$('ctrl-grid');
+let ctrlSig=null,rerunT=0;
+const fmtVal=(c,v)=>c.kind==='bool'?(v?'TRUE':'FALSE'):(+(+v).toFixed(c.dec)).toString();
+function syncControls(){
+  const cs=parseControls(src.value);
+  const sig=cs.map(c=>[c.kind,c.name,c.label,c.min,c.max,c.step].join('|')).join('\n');
+  if(sig!==ctrlSig){
+    ctrlSig=sig;ctrlGrid.textContent='';ctrlBox.hidden=!cs.length;
+    cs.forEach((c,i)=>{
+      const row=document.createElement('div');row.className='ctl';
+      const id='ctl-'+i,lab=document.createElement('label');lab.htmlFor=id;lab.textContent=c.label;lab.title=`:${c.name}`;
+      const inp=document.createElement('input');inp.id=id;
+      const outp=document.createElement('output');outp.htmlFor=id;
+      if(c.kind==='bool'){inp.type='checkbox';inp.checked=c.value;outp.textContent=c.value?'on':'off'}
+      else{inp.type='range';inp.min=c.min;inp.max=c.max;inp.step=c.step;inp.value=c.value;outp.textContent=fmtVal(c,c.value)}
+      inp.addEventListener(c.kind==='bool'?'change':'input',()=>setControl(i,c.kind==='bool'?inp.checked:+inp.value,outp));
+      row.append(lab,inp,outp);ctrlGrid.appendChild(row);
+    });
+  }else{
+    cs.forEach((c,i)=>{
+      const inp=document.getElementById('ctl-'+i);if(!inp||inp===document.activeElement)return;
+      if(c.kind==='bool'){inp.checked=c.value;inp.nextSibling.textContent=c.value?'on':'off'}
+      else{inp.value=c.value;inp.nextSibling.textContent=fmtVal(c,c.value)}
+    });
+  }
+}
+function setControl(i,v,outp){
+  const c=parseControls(src.value)[i];if(!c)return;
+  const txt=fmtVal(c,v),a=src.selectionStart,b=src.selectionEnd,d=txt.length-(c.end-c.start);
+  src.value=src.value.slice(0,c.start)+txt+src.value.slice(c.end);
+  src.setSelectionRange(a>c.start?a+d:a,b>c.start?b+d:b);
+  outp.textContent=c.kind==='bool'?(v?'on':'off'):txt;
+  queueHL();saveDraft();
+  clearTimeout(rerunT);rerunT=setTimeout(()=>runPage(true),220);
+}
+let ctrlT=0;
+src.addEventListener('input',()=>{clearTimeout(ctrlT);ctrlT=setTimeout(syncControls,250)});
 
 // ---- saving (browser storage: per-viewer, best effort) ----
 const pname=$('pname'),delBtn=$('del');
@@ -1801,7 +1985,7 @@ document.querySelectorAll('input[name=spd]').forEach(r=>r.addEventListener('chan
 $('run').addEventListener('click',runPage);
 $('stop').addEventListener('click',()=>{if(R.tasks.length)stopAll('Stopped')});
 src.addEventListener('keydown',e=>{
-  if(e.key==='Tab'){e.preventDefault();const s=src.selectionStart;src.setRangeText('  ',s,src.selectionEnd,'end')}
+  if(e.key==='Tab'){e.preventDefault();const s=src.selectionStart;src.setRangeText('  ',s,src.selectionEnd,'end');queueHL();saveDraft()}
 });
 document.addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();runPage()}
